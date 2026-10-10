@@ -1,0 +1,106 @@
+/* Public landing page — Hog Raiser Management System.
+   Standalone theme: farm greens + warm earth. Mobile-first, big touch targets. */
+:root {
+  --farm-green: #1c7a38;
+  --farm-green-dark: #145c2a;
+  --farm-lime: #e8f5e9;
+  --earth-bg: #f7f3ea;
+  --accent: #f0a202;
+  --ink: #21312a;
+  --muted: #5f6f64;
+}
+* { box-sizing: border-box; }
+body.public-landing {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--earth-bg);
+  line-height: 1.6;
+}
+.public-nav {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0.8rem 1.25rem;
+  background: rgba(20, 92, 42, 0.97); color: #fff;
+}
+.public-nav .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 800; font-size: 1.15rem; color: #fff; text-decoration: none; }
+.public-nav .brand .mark {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); font-size: 1.4rem;
+}
+.public-nav .links { display: flex; gap: 1rem; margin-left: auto; }
+.public-nav .links a { color: #dcefe0; text-decoration: none; font-weight: 600; }
+.public-nav .links a:hover { color: #fff; }
+.btn {
+  display: inline-block; border: none; cursor: pointer; text-decoration: none;
+  font-weight: 700; border-radius: 14px; padding: 0.9rem 1.6rem; font-size: 1.05rem;
+}
+.btn-primary { background: var(--accent); color: #3a2a00; }
+.btn-primary:hover { filter: brightness(1.05); }
+.btn-outline { background: transparent; color: #fff; border: 2px solid #fff; }
+.btn-green { background: var(--farm-green); color: #fff; }
+.btn-green:hover { background: var(--farm-green-dark); }
+.hero {
+  background: radial-gradient(1200px 500px at 80% -10%, #2f9e4f 0%, transparent 60%),
+              linear-gradient(135deg, #145c2a 0%, #1c7a38 60%, #27914a 100%);
+  color: #fff; padding: 4rem 1.25rem 3.5rem;
+}
+.hero-inner { max-width: 1080px; margin: 0 auto; display: grid; gap: 2rem; grid-template-columns: 1.2fr 0.8fr; align-items: center; }
+.hero .pill {
+  display: inline-block; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35);
+  padding: 0.35rem 0.9rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700;
+}
+.hero h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.1; margin: 1rem 0; }
+.hero p.lead { font-size: 1.15rem; color: #e6f4e9; max-width: 34rem; }
+.hero-cta { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.4rem; }
+.hero-trust { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.2rem; font-weight: 600; color: #d8ecdc; }
+.hero-trust span { color: #d8ecdc; }
+.hero-card {
+  background: #fff; color: var(--ink); border-radius: 20px; padding: 1.5rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+}
+.hero-card h3 { margin: 0 0 0.6rem; }
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; margin-top: 1rem; }
+.stat { background: var(--farm-lime); border-radius: 14px; padding: 0.8rem; text-align: center; }
+.stat .num { font-size: 1.6rem; font-weight: 800; color: var(--farm-green-dark); }
+.stat .lbl { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.section { max-width: 1080px; margin: 0 auto; padding: 3rem 1.25rem; }
+.section h2 { font-size: clamp(1.5rem, 3.5vw, 2.2rem); margin: 0 0 0.4rem; }
+.section .sub { color: var(--muted); margin-bottom: 1.6rem; }
+.cards { display: grid; gap: 1rem; grid-template-columns: repeat(3, 1fr); }
+.card {
+  background: #fff; border-radius: 18px; padding: 1.4rem;
+  box-shadow: 0 6px 20px rgba(33, 49, 42, 0.08);
+  border-top: 6px solid var(--farm-green);
+}
+.card .icon { font-size: 2rem; }
+.card h3 { margin: 0.6rem 0 0.4rem; font-size: 1.1rem; }
+.card p { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.8rem; }
+.card a { color: var(--farm-green-dark); font-weight: 700; text-decoration: none; }
+.steps { display: grid; gap: 1rem; grid-template-columns: repeat(4, 1fr); counter-reset: step; }
+.step { background: #fff; border-radius: 18px; padding: 1.3rem; position: relative; box-shadow: 0 6px 20px rgba(33,49,42,.08); }
+.step .n {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--farm-green); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 0.6rem;
+}
+.step h3 { margin: 0 0 0.4rem; font-size: 1.02rem; }
+.step p { color: var(--muted); font-size: 0.92rem; margin: 0; }
+.cta-band {
+  background: linear-gradient(135deg, #145c2a, #27914a); color: #fff;
+  border-radius: 24px; padding: 2.5rem; text-align: center; margin-top: 1rem;
+}
+.cta-band h2 { color: #fff; }
+.public-footer { background: #10231a; color: #bcd4c2; padding: 2rem 1.25rem; margin-top: 3rem; }
+.public-footer .inner { max-width: 1080px; margin: 0 auto; display: flex; gap: 2rem; flex-wrap: wrap; justify-content: space-between; }
+.public-footer a { color: #fff; }
+@media (max-width: 860px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .cards { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr 1fr; }
+  .public-nav .links { display: none; }
+}
+@media (max-width: 560px) {
+  .steps { grid-template-columns: 1fr; }
+  .btn { width: 100%; text-align: center; }
+}

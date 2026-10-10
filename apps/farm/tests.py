@@ -82,6 +82,9 @@ class DashboardTests(TestCase):
                      'farm:care', 'farm:medicines', 'farm:inventory',
                      'farm:alerts', 'farm:report'):
             self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+        # Anonymous visitors see the public landing page, not the ops dashboard.
+        resp = self.client.get(reverse('farm:dashboard'))
+        self.assertTemplateUsed(resp, 'farm/landing.html')
 
     def test_public_hog_create_attributes_to_shared_owner(self):
         resp = self.client.post(reverse('farm:hog_save_ajax'), {'code': 'PUB-001', 'breed': 'Native'})

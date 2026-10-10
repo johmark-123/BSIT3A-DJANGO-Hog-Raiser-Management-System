@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hog Raiser Management System — AI-Powered Piggery Care</title>
+<link rel="stylesheet" href="{% static 'css/public.css' %}">
+</head>
+<body class="public-landing">
+
+<nav class="public-nav">
+  <a class="brand" href="{% url 'farm:dashboard' %}"><span class="mark">🐷</span> Hog Raiser</a>
+  <div class="links">
+    <a href="#features">Features</a>
+    <a href="#automation">AI Automation</a>
+    <a href="{% url 'farm:hog_list' %}">Hogs</a>
+    <a href="{% url 'farm:health' %}">Health</a>
+    <a href="{% url 'farm:medicines' %}">Medicines</a>
+  </div>
+  <div class="links"><a href="{% url 'login' %}" class="btn btn-outline" style="padding:.5rem 1rem;font-size:.9rem">Admin Login</a></div>
+</nav>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <span class="pill">🐖 Capstone Project • BSIT • No login needed</span>
+      <h1>Buong piggery mo,<br>sa isang dashboard.</h1>
+      <p class="lead">Track every hog from piglet to market — feeding plans, health triage, growth prediction, and expenses — with an AI assistant that watches your farm records and alerts you before small problems grow.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="{% url 'farm:hog_list' %}">🚀 Open Farm App</a>
+        <a class="btn btn-outline" href="{% url 'farm:health' %}">💬 Ask AI Assistant</a>
+      </div>
+      <div class="hero-trust">
+        <span>✓ No account needed</span><span>✓ English / Filipino</span><span>✓ Vet-safe guidance</span>
+      </div>
+    </div>
+    <div class="hero-card">
+      <h3>📡 Live farm status</h3>
+      <div class="stat-grid">
+        <div class="stat"><div class="num">{{ hog_count }}</div><div class="lbl">Active hogs</div></div>
+        <div class="stat"><div class="num">{{ market_hogs|length }}</div><div class="lbl">Market ready</div></div>
+        <div class="stat"><div class="num">{{ unread }}</div><div class="lbl">Unread alerts</div></div>
+        <div class="stat"><div class="num">₱{{ month_expenses }}</div><div class="lbl">Month expenses</div></div>
+      </div>
+      <p style="margin:1rem 0 0"><a class="btn btn-green" style="width:100%;text-align:center" href="{% url 'farm:alerts' %}">View alerts →</a></p>
+    </div>
+  </div>
+</header>
+
+<section class="section" id="features">
+  <h2>Everything your piggery needs 🌾</h2>
+  <p class="sub">From the first biik to the final sale — one calm, organized system.</p>
+  <div class="cards">
+    <div class="card"><div class="icon">🐽</div><h3>Hog Life-Cycle Tracking</h3><p>Register every hog by ear-tag, breed, age and stage — piglet to market-ready with target selling dates.</p><a href="{% url 'farm:hog_list' %}">Manage hogs →</a></div>
+    <div class="card"><div class="icon">🥗</div><h3>Smart Feeding & Vitamins</h3><p>Feeding schedules by age and weight, plus vitamin reminders that adjust as your hogs grow.</p><a href="{% url 'farm:care' %}">Feeding & care →</a></div>
+    <div class="card"><div class="icon">🩺</div><h3>AI Health Assistant</h3><p>Report symptoms, get a urgency level and safe next steps — never a diagnosis, vet always confirms.</p><a href="{% url 'farm:health' %}">Check health →</a></div>
+    <div class="card"><div class="icon">💊</div><h3>Medicine Info Center</h3><p>Verified medicine uses, precautions and withdrawal periods — with prescription flags.</p><a href="{% url 'farm:medicines' %}">Browse medicines →</a></div>
+    <div class="card"><div class="icon">📈</div><h3>Growth & Market Prediction</h3><p>Weekly weights → average daily gain, market-date estimates, and slow-growth warnings.</p><a href="{% url 'farm:report' %}">Farm report →</a></div>
+    <div class="card"><div class="icon">💰</div><h3>Inventory & Finance</h3><p>Feeds, vitamins and meds stock with low/expiry alerts, plus cost-per-hog and profit estimates.</p><a href="{% url 'farm:inventory' %}">Inventory →</a></div>
+  </div>
+</section>
+
+<section class="section" id="automation" style="padding-top:0">
+  <h2>🤖 The AI Automation Engine</h2>
+  <p class="sub">It doesn't wait for you to ask — it watches your records and taps you on the shoulder.</p>
+  <div class="steps">
+    <div class="step"><span class="n">1</span><h3>Collect</h3><p>Age, weights, feeding, appetite, symptoms and schedules in one place.</p></div>
+    <div class="step"><span class="n">2</span><h3>Detect</h3><p>Rules + AI spot slow growth, missed records, urgent symptoms, due care.</p></div>
+    <div class="step"><span class="n">3</span><h3>Guide</h3><p>Each alert explains the concern and suggests safe next steps or a vet visit.</p></div>
+    <div class="step"><span class="n">4</span><h3>Remind</h3><p>Tasks stay open until done — including outbreak warnings across the farm.</p></div>
+  </div>
+  <div class="cta-band">
+    <h2>Weigh weekly. Record daily. Sell right. 🎯</h2>
+    <p>Target ~0.65 kg/day gain, market at 90–110 kg. The system computes the rest.</p>
+    <p><a class="btn btn-primary" href="{% url 'farm:hog_list' %}">Start with your first hog →</a></p>
+  </div>
+</section>
+
+<footer class="public-footer">
+  <div class="inner">
+    <div><strong style="color:#fff">🐷 Hog Raiser Management System</strong><br>AI-powered piggery care • BSIT Capstone<br>John Mark Gitalan • Ralph De Leon • Cristian Guilaran</div>
+    <div><a href="{% url 'farm:dashboard' %}">Farm App</a> • <a href="{% url 'farm:report' %}">AI Report</a> • <a href="{% url 'login' %}">Admin Login</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

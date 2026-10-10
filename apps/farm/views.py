@@ -79,9 +79,22 @@ def _to_decimal(raw, default=None):
 
 # ------------------------------------------------------------ dashboards
 def dashboard(request):
-    """Public customer dashboard: daily operations (NO login required)."""
+    """Public landing for visitors (NO login); operations dashboard for logged-in users."""
     if _is_admin(request.user):
         return admin_overview(request)
+    if _is_public_request(request):
+        hogs = Hog.objects.exclude(status__in=['sold', 'deceased'])
+        market = [h for h in hogs
+                  if h.current_weight_kg and float(h.current_weight_kg) >= float(h.target_weight_kg or 100)]
+        month_start = timezone.localdate().replace(day=1)
+        month_exp = Expense.objects.filter(expense_date__gte=month_start).aggregate(
+            s=Sum('amount'))['s'] or Decimal('0.00')
+        return render(request, 'farm/landing.html', {
+            'hog_count': hogs.count(),
+            'market_hogs': market,
+            'unread': Alert.objects.filter(is_resolved=False, is_read=False).count(),
+            'month_expenses': month_exp,
+        })
     hogs = Hog.objects.exclude(status__in=['sold', 'deceased'])
     alerts = Alert.objects.filter(is_resolved=False).order_by('-created_at')[:8]
     unread = Alert.objects.filter(is_resolved=False, is_read=False).count()
