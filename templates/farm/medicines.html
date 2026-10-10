@@ -1,0 +1,40 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle">Verified references only — vet confirms treatment</div><h2 class="page-title">Veterinary Medicine Information Center</h2>
+</div>{% if user.is_superuser %}<div class="col-auto"><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#medModal">Add Medicine</button></div>{% endif %}</div></div>
+{% for message in messages %}<div class="alert alert-info mt-2">{{ message }}</div>{% endfor %}
+<form method="GET" class="my-3" style="max-width:460px"><div class="input-group"><input name="q" value="{{ query }}" class="form-control" placeholder="Search name, ingredient, use…"><button class="btn btn-primary">Search</button></div></form>
+<div class="row row-cards">{% for m in meds %}
+<div class="col-md-6 col-lg-4"><div class="card h-100"><div class="card-body">
+<h3 class="card-title">{{ m.name }}</h3>
+<div class="text-muted small mb-2">{{ m.active_ingredient|default:"—" }}</div>
+<p class="small"><strong>Use:</strong> {{ m.intended_use|truncatechars:160 }}</p>
+<p class="small"><strong>Withdrawal:</strong> {{ m.withdrawal_days }} day(s) {% if m.prescription_required %}· <span class="badge bg-danger">Rx required</span>{% endif %}</p>
+{% if m.precautions %}<p class="small text-muted"><strong>Precautions:</strong> {{ m.precautions|truncatechars:160 }}</p>{% endif %}
+{% if m.reference_source %}<p class="small text-muted">Source: {{ m.reference_source }}</p>{% endif %}
+{% if user.is_superuser %}<button class="btn btn-sm btn-outline-danger" onclick="delMed({{ m.id }})">Delete</button>{% endif %}
+</div></div></div>
+{% empty %}<div class="col-12"><div class="alert alert-info">No medicines found. Admins add verified entries in Admin or here.</div></div>{% endfor %}</div>
+
+{% if user.is_superuser %}
+<div class="modal modal-blur fade" id="medModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title">Medicine (verified)</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<form id="medForm">{% csrf_token %}<div class="modal-body row g-2">
+<div class="col-12"><label class="form-label">Name *</label><input name="name" class="form-control" required></div>
+<div class="col-12"><label class="form-label">Active ingredient</label><input name="active_ingredient" class="form-control"></div>
+<div class="col-12"><label class="form-label">Intended use</label><textarea name="intended_use" class="form-control" rows="2"></textarea></div>
+<div class="col-12"><label class="form-label">Precautions</label><textarea name="precautions" class="form-control" rows="2"></textarea></div>
+<div class="col-6"><label class="form-label">Withdrawal days</label><input name="withdrawal_days" type="number" min="0" value="0" class="form-control"></div>
+<div class="col-6"><label class="form-label">Rx required?</label><select name="prescription_required" class="form-select"><option value="false">No</option><option value="true">Yes</option></select></div>
+<div class="col-12"><label class="form-label">Reference source</label><input name="reference_source" class="form-control"></div>
+</div><div class="modal-footer"><button class="btn btn-primary" type="submit">Save</button></div></form>
+</div></div></div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}<script>
+const csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
+const mf=document.getElementById('medForm');
+if(mf){mf.addEventListener('submit',e=>{e.preventDefault();fetch("{% url 'farm:medicine_save_ajax' %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:new FormData(mf)}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error);return;}location.reload();});});}
+function delMed(id){if(!confirm('Delete?'))return;fetch("/farm/medicines/ajax/delete/"+id+"/",{method:'POST',headers:{'X-CSRFToken':csrf}}).then(()=>location.reload());}
+</script>{% endblock %}

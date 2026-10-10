@@ -1,0 +1,23 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle">System control & farm oversight</div><h2 class="page-title">Admin Dashboard</h2>
+</div></div></div>
+<div class="row row-deck row-cards mt-2">
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="subheader">Users</div><div class="h1">{{ total_users }}</div></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="subheader">Hogs</div><div class="h1">{{ total_hogs }}</div></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="subheader">Open Health Cases</div><div class="h1">{{ open_health }} <small class="text-danger">({{ urgent }} urgent)</small></div></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body"><div class="subheader">Open Alerts</div><div class="h1">{{ open_alerts }}</div></div></div></div>
+</div>
+<div class="row mt-3">
+  <div class="col-lg-7"><div class="card"><div class="card-header"><h3 class="card-title">Recent System Activity</h3></div>
+  <div class="list-group list-group-flush">{% for a in recent_alerts %}
+    <div class="list-group-item"><strong>{{ a.title }}</strong><div class="text-muted small">{{ a.owner.username }} · {{ a.created_at }} · {{ a.get_alert_type_display }}</div></div>
+  {% empty %}<div class="list-group-item text-muted">No activity.</div>{% endfor %}</div></div></div>
+  <div class="col-lg-5"><div class="card"><div class="card-header"><h3 class="card-title">Hogs by Stage</h3></div>
+    <table class="table card-table"><tbody>{% for r in by_stage %}<tr><td>{{ r.stage }}</td><td>{{ r.n }}</td></tr>{% empty %}<tr><td class="text-muted">No data.</td></tr>{% endfor %}</tbody></table></div>
+    <div class="card mt-3"><div class="card-header"><h3 class="card-title">Health by Urgency</h3></div>
+    <table class="table card-table"><tbody>{% for r in by_urgency %}<tr><td>{{ r.urgency }}</td><td>{{ r.n }}</td></tr>{% empty %}<tr><td class="text-muted">No data.</td></tr>{% endfor %}</tbody></table></div>
+  </div>
+</div>
+{% endblock %}

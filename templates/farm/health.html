@@ -1,0 +1,54 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle">AI Hog Health Assistant — triage only, never auto-diagnosis</div><h2 class="page-title">Health Monitoring</h2>
+</div></div></div>
+{% for message in messages %}<div class="alert alert-info mt-2">{{ message }}</div>{% endfor %}
+<div class="row mt-2">
+<div class="col-lg-7"><div class="card"><div class="card-header"><h3 class="card-title">Report Symptoms</h3></div><div class="card-body">
+<form id="healthForm">{% csrf_token %}
+<div class="row g-2">
+<div class="col-12"><label class="form-label">Hog *</label><select name="hog_id" class="form-select" required>{% for h in hogs %}<option value="{{ h.id }}">{{ h.code }} — {{ h.display_name }}</option>{% endfor %}</select></div>
+<div class="col-12"><label class="form-label">Symptoms / observations *</label><textarea name="symptoms" class="form-control" rows="3" placeholder="e.g. eating less, watery diarrhea since yesterday…" required></textarea></div>
+<div class="col-4"><label class="form-label">Appetite</label><select name="appetite" class="form-select"><option value="normal">Normal</option><option value="reduced">Reduced</option><option value="loss">Loss</option><option value="increased">Increased</option></select></div>
+<div class="col-4"><label class="form-label">Days sick</label><input name="duration_days" type="number" min="1" value="1" class="form-control"></div>
+<div class="col-4"><label class="form-label">Affected</label><input name="affected_count" type="number" min="1" value="1" class="form-control"></div>
+<div class="col-12"><label class="form-label">Behavior notes</label><input name="behavior" class="form-control" placeholder="e.g. lethargic, isolated…"></div>
+</div><button class="btn btn-primary mt-3" type="submit"><i class="fas fa-stethoscope me-2"></i>Analyze & Save</button>
+<span class="text-muted small ms-2">AI never prescribes medicine — vet confirms treatment.</span></form>
+<div id="healthResult" class="alert alert-warning d-none mt-3"></div>
+</div></div>
+<div class="card mt-3"><div class="card-header"><h3 class="card-title">Recent Reports</h3></div>
+<div class="table-responsive"><table class="table card-table table-sm"><thead><tr><th>Hog</th><th>Urgency</th><th>Symptoms</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in reports %}<tr><td>{{ r.hog.code }}</td><td><span class="badge bg-{% if r.urgency == 'urgent' %}danger{% elif r.urgency == 'needs_attention' %}warning{% else %}success{% endif %}">{{ r.get_urgency_display }}</span>{% if r.vet_referral %}<div class="small text-danger">vet referral</div>{% endif %}</td>
+<td>{{ r.symptoms|truncatechars:90 }}<div class="small text-muted">{{ r.recommended_steps|truncatechars:120 }}</div></td>
+<td><select class="form-select form-select-sm" onchange="setStatus({{ r.id }},this.value)">{% for v,l in r.STATUS %}<option value="{{ v }}" {% if r.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></td>
+<td class="text-muted small">{{ r.created_at|date:"m-d H:i" }}</td></tr>
+{% empty %}<tr><td colspan="5" class="text-muted text-center py-4">No reports yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+
+<div class="col-lg-5"><div class="card"><div class="card-header"><h3 class="card-title">Ask the AI Farm Assistant (EN/Filipino)</h3></div><div class="card-body">
+<div id="chatLog" class="mb-3" style="max-height:300px;overflow:auto">
+{% for c in chats %}<div class="mb-2"><div class="fw-bold small">{{ c.question }}</div><div class="text-muted small">{{ c.answer|truncatechars:300 }}</div></div>{% endfor %}
+</div>
+<form id="askForm" class="d-flex gap-2">{% csrf_token %}<input name="question" class="form-control" placeholder="e.g. Anong pakain sa 60kg grower?" required><button class="btn btn-primary">Ask</button></form>
+<div id="askAnswer" class="alert alert-info d-none mt-3" style="white-space:pre-wrap"></div>
+</div></div>
+<div class="card mt-3"><div class="card-header"><h3 class="card-title">Safety Rules</h3></div><div class="card-body small text-muted">
+• AI gives <strong>preliminary urgency</strong> (routine / needs attention / urgent), not a diagnosis.<br>
+• Always quarantine fever/diarrhea cases and call a vet — especially multi-hog clusters (possible outbreak).<br>
+• Never dose antibiotics on AI advice alone; respect withdrawal periods before selling.
+</div></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>
+const csrf=document.querySelectorAll('[name=csrfmiddlewaretoken]')[0].value;
+document.getElementById('healthForm').addEventListener('submit',e=>{e.preventDefault();
+fetch("{% url 'farm:health_save_ajax' %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:new FormData(e.target)}).then(r=>r.json()).then(d=>{
+const box=document.getElementById('healthResult');
+if(d.error){box.textContent=d.error;box.classList.remove('d-none');return;}
+box.textContent='Saved with urgency: '+d.urgency+(d.vet_referral?' — VET REFERRAL recommended.':'.')+' ('+d.provider+')';box.classList.remove('d-none');setTimeout(()=>location.reload(),1500);});});
+document.getElementById('askForm').addEventListener('submit',e=>{e.preventDefault();
+const box=document.getElementById('askAnswer');box.textContent='Thinking…';box.classList.remove('d-none');
+fetch("{% url 'farm:assistant_ask_ajax' %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:new FormData(e.target)}).then(r=>r.json()).then(d=>{box.textContent=d.answer||d.error;});});
+function setStatus(id,v){fetch("/farm/health/ajax/status/"+id+"/",{method:'POST',headers:{'X-CSRFToken':csrf},body:new URLSearchParams({status:v})}).then(()=>location.reload());}
+</script>{% endblock %}

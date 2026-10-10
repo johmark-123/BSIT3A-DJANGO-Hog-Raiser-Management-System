@@ -1,0 +1,28 @@
+{% load static %}
+<aside class="navbar navbar-vertical navbar-expand-lg navbar-dark dh-sidebar">
+  <div class="container-fluid">
+    <div class="navbar-brand navbar-brand-autodark dh-brand">
+      <a href="/farm/" class="d-flex align-items-center gap-2 text-decoration-none">
+        <span class="dh-brand-mark"><i class="fa-solid fa-piggy-bank"></i></span>
+        <span class="lh-1"><span class="dh-brand-name">Hog<span class="text-warning">Farm</span></span>
+        <span class="dh-brand-sub">Raiser System</span></span>
+      </a>
+    </div>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="sidebar-menu">
+      <ul class="navbar-nav pt-lg-2 py-lg-2">
+        <li class="nav-item"><span class="dh-nav-section">Farm Menu — no login needed</span></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:dashboard' %}"><span class="nav-link-icon"><i class="fa fa-dashboard"></i></span><span class="nav-link-title">Farm Dashboard</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:hog_list' %}"><span class="nav-link-icon"><i class="fas fa-paw"></i></span><span class="nav-link-title">Hogs</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:health' %}"><span class="nav-link-icon"><i class="fas fa-stethoscope"></i></span><span class="nav-link-title">Health & AI Assistant</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:care' %}"><span class="nav-link-icon"><i class="fas fa-calendar-check"></i></span><span class="nav-link-title">Feeding & Care</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:medicines' %}"><span class="nav-link-icon"><i class="fas fa-pills"></i></span><span class="nav-link-title">Medicine Info</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:inventory' %}"><span class="nav-link-icon"><i class="fas fa-boxes"></i></span><span class="nav-link-title">Inventory & Finance</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:alerts' %}"><span class="nav-link-icon"><i class="fas fa-bell"></i></span><span class="nav-link-title">Alerts</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'farm:report' %}"><span class="nav-link-icon"><i class="fas fa-file-alt"></i></span><span class="nav-link-title">AI Farm Report</span></a></li>
+        <li class="nav-item mt-3"><span class="dh-nav-section">System</span></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'login' %}"><span class="nav-link-icon"><i class="fas fa-user-shield"></i></span><span class="nav-link-title">Admin Login</span></a></li>
+      </ul>
+    </div>
+  </div>
+</aside>

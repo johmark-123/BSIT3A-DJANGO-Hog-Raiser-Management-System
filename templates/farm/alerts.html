@@ -1,0 +1,25 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle">AI Automation Engine output</div><h2 class="page-title">Alerts & Tasks</h2>
+</div><div class="col-auto"><a href="?show=open" class="btn btn-sm {% if show == 'open' %}btn-primary{% else %}btn-outline-primary{% endif %}">Open</a>
+<a href="?show=all" class="btn btn-sm {% if show == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">All</a></div></div></div>
+<div class="row row-cards mt-2">{% for a in alerts %}
+<div class="col-md-6 col-lg-4"><div class="card {% if not a.is_read %}border-primary{% endif %}"><div class="card-body">
+<span class="badge bg-{% if a.severity == 'critical' %}danger{% elif a.severity == 'warning' %}warning{% else %}info{% endif %}">{{ a.get_severity_display }}</span>
+<span class="badge bg-secondary-lt ms-1">{{ a.get_alert_type_display }}</span>
+<h3 class="mt-2">{{ a.title }}</h3>
+<p class="text-muted small">{{ a.message }}</p>
+{% if a.recommended_action %}<p class="small"><strong>Action:</strong> {{ a.recommended_action }}</p>{% endif %}
+<div class="small text-muted">{{ a.hog.code|default:"" }} · {{ a.created_at }}</div>
+<div class="mt-2 d-flex gap-2">{% if not a.is_read %}<button class="btn btn-sm btn-outline-primary" onclick="act({{ a.id }},'read')">Mark read</button>{% endif %}
+{% if not a.is_resolved %}<button class="btn btn-sm btn-primary" onclick="act({{ a.id }},'resolve')">Resolve</button>{% else %}<span class="badge bg-success">resolved</span>{% endif %}</div>
+</div></div></div>
+{% empty %}<div class="col-12"><div class="alert alert-success">All clear — no alerts. Run automation after recording weights/feeding.</div></div>{% endfor %}</div>
+{% if alerts.paginator.num_pages > 1 %}<div class="mt-3 text-muted">Page {{ alerts.number }} of {{ alerts.paginator.num_pages }}</div>{% endif %}
+<form style="display:none">{% csrf_token %}</form>
+{% endblock %}
+{% block extra_js %}<script>
+function getCsrf(){return document.querySelector('[name=csrfmiddlewaretoken]').value;}
+function act(id,action){fetch("/farm/alerts/ajax/action/"+id+"/",{method:'POST',headers:{'X-CSRFToken':getCsrf()},body:new URLSearchParams({action})}).then(()=>location.reload());}
+</script>{% endblock %}

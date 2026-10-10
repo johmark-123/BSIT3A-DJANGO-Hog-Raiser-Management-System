@@ -1,0 +1,24 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle">Growth · expenses · health · tasks</div><h2 class="page-title">AI Farm Report</h2>
+</div><div class="col-auto"><form method="POST">{% csrf_token %}<button class="btn btn-primary"><i class="fas fa-robot me-2"></i>Generate AI Summary</button></form></div></div></div>
+{% for message in messages %}<div class="alert alert-info mt-2">{{ message }}</div>{% endfor %}
+<div class="row mt-2">
+<div class="col-lg-4"><div class="card"><div class="card-body">
+<p><strong>Total hogs:</strong> {{ stats.total_hogs }}</p>
+<p><strong>Avg weight:</strong> {{ stats.avg_weight }} kg</p>
+<p><strong>Slow growth:</strong> {{ stats.slow_growth }}</p>
+<p><strong>Market ready:</strong> {{ stats.market_ready }}</p>
+<p><strong>Open health:</strong> {{ stats.open_health }}</p>
+<p><strong>Unresolved alerts:</strong> {{ stats.unresolved_alerts }}</p>
+<p><strong>Expenses:</strong> ₱{{ stats.month_expenses }}</p>
+</div></div>
+<div class="card mt-3"><div class="card-header"><h3 class="card-title">Verified References</h3></div><div class="list-group list-group-flush">
+{% for r in refs %}<div class="list-group-item"><strong>{{ r.title }}</strong><div class="small text-muted">{{ r.content|truncatechars:140 }}</div></div>{% empty %}<div class="list-group-item text-muted">Admin adds reference articles in Django Admin.</div>{% endfor %}
+</div></div></div>
+<div class="col-lg-8"><div class="card"><div class="card-header"><h3 class="card-title">Summary</h3></div><div class="card-body">
+{% if summary %}<div style="white-space:pre-wrap">{{ summary }}</div>{% else %}<p class="text-muted">Click “Generate AI Summary” — uses Gemini/OpenRouter when keys are set, otherwise a rule-based summary. Safe for defense without internet.</p>{% endif %}
+</div></div></div>
+</div>
+{% endblock %}

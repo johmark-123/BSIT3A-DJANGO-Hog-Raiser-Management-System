@@ -1,0 +1,61 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle">Hog Raiser Management</div>
+<h2 class="page-title">Customer Dashboard</h2>
+</div><div class="col-auto ms-auto d-print-none">
+<form method="POST" action="{% url 'farm:run_automation_ajax' %}" id="runAutoForm" class="d-inline">{% csrf_token %}
+<button class="btn btn-primary"><i class="fas fa-robot me-2"></i>Run AI Automation</button></form>
+<a href="{% url 'farm:report' %}" class="btn btn-outline-primary ms-2"><i class="fas fa-file-alt me-2"></i>Farm Report</a>
+</div></div></div>
+
+<div id="autoMsg" class="alert alert-success d-none mt-3"></div>
+
+<div class="row row-deck row-cards mt-2">
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body">
+    <div class="subheader">Active Hogs</div><div class="h1 mb-0">{{ hog_count }}</div>
+    <a href="{% url 'farm:hog_list' %}">Manage hogs →</a></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body">
+    <div class="subheader">Unread Alerts</div><div class="h1 mb-0">{{ unread }}</div>
+    <a href="{% url 'farm:alerts' %}">View alerts →</a></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body">
+    <div class="subheader">Month Expenses ₱</div><div class="h1 mb-0">{{ month_expenses }}</div>
+    <a href="{% url 'farm:inventory' %}">Finance →</a></div></div></div>
+  <div class="col-sm-6 col-lg-3"><div class="card"><div class="card-body">
+    <div class="subheader">Market Ready</div><div class="h1 mb-0">{{ market_hogs|length }}</div>
+    <span class="text-muted">≥ target weight</span></div></div></div>
+</div>
+
+<div class="row row-cards mt-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Latest Alerts</h3></div>
+    <div class="list-group list-group-flush">
+    {% for a in alerts %}<div class="list-group-item">
+      <span class="badge bg-{% if a.severity == 'critical' %}danger{% elif a.severity == 'warning' %}warning{% else %}info{% endif %} me-2">{{ a.get_severity_display }}</span>
+      <strong>{{ a.title }}</strong><div class="text-muted small">{{ a.message|truncatechars:140 }}</div>
+    </div>{% empty %}<div class="list-group-item text-muted">No alerts. Run AI Automation.</div>{% endfor %}
+    </div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Care Due (7 days)</h3></div>
+    <div class="table-responsive"><table class="table card-table"><thead><tr><th>Task</th><th>Hog</th><th>Due</th></tr></thead><tbody>
+    {% for t in due_care %}<tr><td>{{ t.title }}</td><td>{{ t.hog.code|default:"—" }}</td><td>{{ t.due_date }}</td></tr>
+    {% empty %}<tr><td colspan="3" class="text-muted">Nothing due.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+
+<div class="row row-cards mt-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Slow Growth Watch</h3></div>
+    <div class="list-group list-group-flush">
+    {% for h in slow_hogs %}<a class="list-group-item" href="{% url 'farm:hog_detail' h.id %}"><strong>{{ h.code }}</strong> — ADG {{ h.average_daily_gain }} kg/day</a>
+    {% empty %}<div class="list-group-item text-muted">Growth looks OK.</div>{% endfor %}</div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Recent Health Reports</h3></div>
+    <div class="list-group list-group-flush">
+    {% for r in recent_health %}<div class="list-group-item"><span class="badge bg-warning me-2">{{ r.get_urgency_display }}</span>{{ r.hog.code }} — {{ r.symptoms|truncatechars:80 }}</div>
+    {% empty %}<div class="list-group-item text-muted">No reports yet.</div>{% endfor %}</div></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>
+document.getElementById('runAutoForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  fetch("{% url 'farm:run_automation_ajax' %}", {method:'POST', headers:{'X-CSRFToken':document.querySelector('[name=csrfmiddlewaretoken]').value}})
+  .then(r=>r.json()).then(d=>{const m=document.getElementById('autoMsg');m.textContent='Automation finished: '+d.new_alerts+' new alert(s). Reloading…';m.classList.remove('d-none');setTimeout(()=>location.reload(),1200);});
+});
+</script>{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle">Feeding · vitamins · vaccines</div><h2 class="page-title">Care Schedule</h2>
+</div><div class="col-auto"><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#careModal">Add Task</button></div></div></div>
+<div class="mt-2"><a href="?status=open" class="btn btn-sm {% if status == 'open' %}btn-primary{% else %}btn-outline-primary{% endif %}">Open</a>
+<a href="?status=done" class="btn btn-sm {% if status == 'done' %}btn-primary{% else %}btn-outline-primary{% endif %}">Done</a>
+<a href="?status=all" class="btn btn-sm {% if status == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">All</a></div>
+{% for message in messages %}<div class="alert alert-info mt-2">{{ message }}</div>{% endfor %}
+<div class="card mt-3"><div class="table-responsive"><table class="table card-table"><thead><tr><th>Task</th><th>Type</th><th>Hog</th><th>Due</th><th>Done</th><th></th></tr></thead><tbody>
+{% for t in tasks %}<tr><td><strong>{{ t.title }}</strong><div class="small text-muted">{{ t.notes|truncatechars:80 }}</div></td>
+<td>{{ t.get_care_type_display }}</td><td>{{ t.hog.code|default:"Farm-wide" }}</td><td>{{ t.due_date }}</td>
+<td><button class="btn btn-sm {% if t.completed %}btn-success{% else %}btn-outline-secondary{% endif %}" onclick="toggleCare({{ t.id }})">{% if t.completed %}Done{% else %}Mark done{% endif %}</button></td>
+<td><button class="btn btn-sm btn-ghost-danger" onclick="delCare({{ t.id }})"><i class="fas fa-trash"></i></button></td></tr>
+{% empty %}<tr><td colspan="6" class="text-muted text-center py-4">No tasks.</td></tr>{% endfor %}</tbody></table></div></div>
+
+<div class="modal modal-blur fade" id="careModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title">Care Task</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+<form id="careForm">{% csrf_token %}<div class="modal-body row g-2">
+<div class="col-12"><label class="form-label">Title *</label><input name="title" class="form-control" placeholder="e.g. Vitamin ADE — batch A" required></div>
+<div class="col-6"><label class="form-label">Type</label><select name="care_type" class="form-select"><option value="feeding">Feeding</option><option value="vitamin">Vitamin</option><option value="vaccine">Vaccination</option><option value="deworming">Deworming</option><option value="checkup" selected>Checkup</option><option value="breeding">Breeding</option><option value="farrowing">Farrowing</option><option value="other">Other</option></select></div>
+<div class="col-6"><label class="form-label">Due date *</label><input name="due_date" type="date" class="form-control" required></div>
+<div class="col-12"><label class="form-label">Hog (optional = farm-wide)</label><select name="hog_id" class="form-select"><option value="">— farm-wide —</option>{% for h in hogs %}<option value="{{ h.id }}">{{ h.code }}</option>{% endfor %}</select></div>
+<div class="col-12"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+</div><div class="modal-footer"><button class="btn btn-primary" type="submit">Save</button></div></form></div></div></div>
+{% endblock %}
+{% block extra_js %}<script>
+const csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
+document.getElementById('careForm').addEventListener('submit',e=>{e.preventDefault();fetch("{% url 'farm:care_save_ajax' %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:new FormData(e.target)}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error);return;}location.reload();});});
+function toggleCare(id){fetch("/farm/care/ajax/toggle/"+id+"/",{method:'POST',headers:{'X-CSRFToken':csrf}}).then(()=>location.reload());}
+function delCare(id){fetch("/farm/care/ajax/delete/"+id+"/",{method:'POST',headers:{'X-CSRFToken':csrf}}).then(()=>location.reload());}
+</script>{% endblock %}

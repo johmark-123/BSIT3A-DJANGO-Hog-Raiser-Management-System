@@ -1,0 +1,62 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle"><a href="{% url 'farm:hog_list' %}">Hogs</a> / {{ hog.code }}</div>
+<h2 class="page-title">{{ hog.display_name }} <small class="text-muted">{{ hog.breed }} · {{ hog.get_stage_display }}</small></h2>
+</div><div class="col-auto"><span class="badge bg-{% if growth == 'good' %}success{% elif growth == 'slow' or growth == 'losing' %}danger{% else %}secondary{% endif %}">Growth: {{ growth }} {% if adg %}(ADG {{ adg }} kg/d){% endif %}</span></div></div></div>
+
+{% for message in messages %}<div class="alert alert-info mt-2">{{ message }}</div>{% endfor %}
+
+<div class="row row-cards mt-2">
+<div class="col-lg-4"><div class="card"><div class="card-header"><h3 class="card-title">Profile & Feeding Plan</h3></div><div class="card-body">
+<p class="mb-1"><strong>Tag:</strong> {{ hog.code }} (QR value)</p>
+<p class="mb-1"><strong>Age:</strong> {{ hog.age_weeks }} weeks ({{ hog.birth_date }})</p>
+<p class="mb-1"><strong>Weight:</strong> {{ hog.current_weight_kg|default:"—" }} kg → target {{ hog.target_weight_kg }} kg</p>
+<p class="mb-1"><strong>Market ETA:</strong> {{ market_date|default:"need 2+ weight records" }}</p>
+<p class="mb-1"><strong>Costs:</strong> ₱{{ hog.total_expenses }} · <strong>Est. profit:</strong> ₱{{ hog.estimated_profit }}</p>
+<hr><h4>Smart Feeding Suggestion</h4>
+<p><span class="badge bg-primary">{{ plan.feed_category }}</span> ~{{ plan.kg_per_day }} kg/day</p>
+<p class="text-muted small">{{ plan.explanation }}</p>
+<p class="small"><strong>Vitamins:</strong> {{ plan.vitamin_plan }}</p>
+</div></div></div>
+
+<div class="col-lg-8"><div class="card"><div class="card-header"><h3 class="card-title">Weight & Growth Prediction</h3></div><div class="card-body">
+<form id="wtForm" class="row g-2">{% csrf_token %}
+<div class="col-4"><input type="date" name="date" class="form-control" value="{% now 'Y-m-d' %}"></div>
+<div class="col-4"><input type="number" step="0.01" name="weight_kg" class="form-control" placeholder="kg" required></div>
+<div class="col-4"><button class="btn btn-primary w-100">Record weight</button></div></form>
+<div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Date</th><th>kg</th><th>Notes</th><th></th></tr></thead><tbody>
+{% for w in weights %}<tr><td>{{ w.date }}</td><td>{{ w.weight_kg }}</td><td>{{ w.notes }}</td>
+<td><button class="btn btn-sm btn-ghost-danger" onclick="delWeight({{ w.id }})"><i class="fas fa-trash"></i></button></td></tr>
+{% empty %}<tr><td colspan="4" class="text-muted">No weights yet — record at least 2 for ADG & market ETA.</td></tr>{% endfor %}
+</tbody></table></div>
+</div></div>
+
+<div class="card mt-3"><div class="card-header"><h3 class="card-title">Feeding Records</h3></div><div class="card-body">
+<form id="feedForm" class="row g-2">{% csrf_token %}
+<div class="col-3"><select name="feed_category" class="form-select"><option value="pre_starter">Pre-starter</option><option value="starter">Starter</option><option value="grower" selected>Grower</option><option value="finisher">Finisher</option><option value="gestating">Gestating</option><option value="lactating">Lactating</option><option value="boar">Boar</option><option value="supplement">Supplement</option></select></div>
+<div class="col-3"><input name="feed_name" class="form-control" placeholder="Brand/name"></div>
+<div class="col-2"><input name="amount_kg_per_day" type="number" step="0.01" class="form-control" placeholder="kg/day" required></div>
+<div class="col-2"><input name="feeding_date" type="date" class="form-control" value="{% now 'Y-m-d' %}"></div>
+<div class="col-2"><button class="btn btn-primary w-100">Save</button></div></form>
+<div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Date</th><th>Category</th><th>Feed</th><th>kg/day</th></tr></thead><tbody>
+{% for f in feedings %}<tr><td>{{ f.feeding_date }}</td><td>{{ f.get_feed_category_display }}</td><td>{{ f.feed_name|default:"—" }}</td><td>{{ f.amount_kg_per_day }}</td></tr>
+{% empty %}<tr><td colspan="4" class="text-muted">No feeding records.</td></tr>{% endfor %}</tbody></table></div>
+</div></div>
+</div>
+
+<div class="row mt-3"><div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Health History</h3></div>
+<div class="list-group list-group-flush">{% for r in health %}<div class="list-group-item"><span class="badge bg-warning me-2">{{ r.get_urgency_display }}</span>{{ r.symptoms|truncatechars:100 }}<div class="small text-muted">{{ r.created_at }} · {{ r.get_status_display }}{% if r.vet_referral %} · <strong>vet referral</strong>{% endif %}</div></div>
+{% empty %}<div class="list-group-item text-muted">No health incidents.</div>{% endfor %}</div></div></div>
+<div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Care Schedule</h3></div>
+<div class="list-group list-group-flush">{% for c in cares %}<div class="list-group-item">{{ c.title }} — due {{ c.due_date }} {% if c.completed %}<span class="badge bg-success">done</span>{% endif %}</div>
+{% empty %}<div class="list-group-item text-muted">No care tasks. <a href="{% url 'farm:care' %}">Add one →</a></div>{% endfor %}</div></div></div></div>
+{% endblock %}
+{% block extra_js %}<script>
+const csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
+document.getElementById('wtForm').addEventListener('submit',e=>{e.preventDefault();
+fetch("{% url 'farm:weight_save_ajax' hog.id %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:new FormData(e.target)}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error);return;}location.reload();});});
+document.getElementById('feedForm').addEventListener('submit',e=>{e.preventDefault();
+fetch("{% url 'farm:feeding_save_ajax' hog.id %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:new FormData(e.target)}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error);return;}location.reload();});});
+function delWeight(id){fetch("{% url 'farm:hog_detail' hog.id %}weights/ajax/delete/"+id+"/",{method:'POST',headers:{'X-CSRFToken':csrf}}).then(()=>location.reload());}
+</script>{% endblock %}
