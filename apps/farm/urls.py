@@ -50,4 +50,7 @@ urlpatterns = [
     path('alerts/ajax/action/<int:pk>/', views.alert_action_ajax, name='alert_action_ajax'),
     path('alerts/ajax/run/', views.run_automation_ajax, name='run_automation_ajax'),
     path('report/', views.farm_report_page, name='report'),
+
+    # search
+    path('search/', views.search_page, name='search'),
 ]

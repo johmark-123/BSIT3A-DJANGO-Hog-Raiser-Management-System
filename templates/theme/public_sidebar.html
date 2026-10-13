@@ -11,6 +11,14 @@
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="sidebar-menu">
       <ul class="navbar-nav pt-lg-2 py-lg-2">
+        <li class="nav-item px-3 pb-2">
+          <form method="GET" action="{% url 'farm:search' %}">
+            <div class="input-group input-group-flat">
+              <span class="input-group-text"><i class="fas fa-search"></i></span>
+              <input type="text" name="q" class="form-control" placeholder="Search…" value="{{ request.GET.q }}">
+            </div>
+          </form>
+        </li>
         <li class="nav-item"><span class="dh-nav-section">Farm Menu — no login needed</span></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'farm:dashboard' %}"><span class="nav-link-icon"><i class="fa fa-dashboard"></i></span><span class="nav-link-title">Farm Dashboard</span></a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'farm:hog_list' %}"><span class="nav-link-icon"><i class="fas fa-paw"></i></span><span class="nav-link-title">Hogs</span></a></li>

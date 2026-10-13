@@ -545,6 +545,21 @@ def expense_delete_ajax(request, pk):
     return JsonResponse({'status': 'deleted'})
 
 
+# ------------------------------------------------------------ search
+def search_page(request):
+    q = request.GET.get('q', '').strip()
+    hogs, meds, items, reports = [], [], [], []
+    if q:
+        hogs = Hog.objects.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(breed__icontains=q))
+        meds = Medicine.objects.filter(Q(name__icontains=q) | Q(active_ingredient__icontains=q) | Q(intended_use__icontains=q))
+        items = InventoryItem.objects.filter(Q(name__icontains=q) | Q(category__icontains=q))
+        reports = HealthReport.objects.filter(Q(symptoms__icontains=q) | Q(hog__code__icontains=q))
+    return render(request, 'farm/search.html', {
+        'q': q, 'hogs': hogs, 'meds': meds, 'items': items, 'reports': reports,
+        'total': len(hogs) + len(meds) + len(items) + len(reports),
+    })
+
+
 # ------------------------------------------------------------ alerts + automation + report (public)
 def alerts_page(request):
     qs = Alert.objects.all().order_by('-created_at')
