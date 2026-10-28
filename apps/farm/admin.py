@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .models import (
     AIConsultation, Alert, CareSchedule, Expense, FeedingRecord,
-    HealthReport, Hog, InventoryItem, Medicine, ReferenceArticle, WeightRecord,
+    HealthReport, Hog, HogMedicine, InventoryItem, Medicine, ReferenceArticle, WeightRecord,
 )
 
 
@@ -70,3 +70,9 @@ class ReferenceAdmin(admin.ModelAdmin):
 @admin.register(AIConsultation)
 class AIChatAdmin(admin.ModelAdmin):
     list_display = ('owner', 'hog', 'created_at')
+
+
+@admin.register(HogMedicine)
+class HogMedicineAdmin(admin.ModelAdmin):
+    list_display = ('hog', 'medicine', 'administered_date', 'route', 'dosage', 'withdrawal_until')
+    list_filter = ('route', 'administered_date')

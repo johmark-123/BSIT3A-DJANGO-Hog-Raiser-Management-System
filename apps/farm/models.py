@@ -395,3 +395,41 @@ class AIConsultation(models.Model):
     class Meta:
         db_table = 'farm_ai_chat'
         ordering = ['-created_at']
+
+
+class HogMedicine(models.Model):
+    ROUTE_CHOICES = [
+        ('oral', 'Oral'),
+        ('injection', 'Injection'),
+        ('topical', 'Topical'),
+        ('other', 'Other'),
+    ]
+    hog = models.ForeignKey(Hog, related_name='hog_medicines', on_delete=models.CASCADE)
+    medicine = models.ForeignKey(Medicine, related_name='hog_links', on_delete=models.CASCADE)
+    health_report = models.ForeignKey(
+        HealthReport, related_name='medicine_links', on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    administered_date = models.DateField(default=timezone.localdate)
+    dosage = models.CharField(max_length=120, blank=True)
+    route = models.CharField(max_length=20, choices=ROUTE_CHOICES, default='oral')
+    notes = models.TextField(blank=True)
+    administered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='hog_medicine_links',
+        on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    withdrawal_until = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'farm_hog_medicine'
+        ordering = ['-administered_date', '-id']
+
+    def __str__(self):
+        return f'{self.hog.code} - {self.medicine.name}'
+
+    def save(self, *args, **kwargs):
+        if not self.withdrawal_until and self.medicine and self.medicine.withdrawal_days:
+            from datetime import timedelta
+            self.withdrawal_until = self.administered_date + timedelta(days=self.medicine.withdrawal_days)
+        super().save(*args, **kwargs)

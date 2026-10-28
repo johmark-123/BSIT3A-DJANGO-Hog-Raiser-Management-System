@@ -38,6 +38,12 @@ urlpatterns = [
     path('medicines/ajax/save/', views.medicine_save_ajax, name='medicine_save_ajax'),
     path('medicines/ajax/delete/<int:pk>/', views.medicine_delete_ajax, name='medicine_delete_ajax'),
 
+    # hog <-> medicine links (API)
+    path('hogs/<int:pk>/medicines/', views.hog_medicines_list_ajax, name='hog_medicines_list'),
+    path('hogs/<int:pk>/medicines/ajax/list/', views.hog_medicines_list_ajax, name='hog_medicines_list_ajax'),
+    path('hogs/<int:pk>/medicines/ajax/link/', views.hog_medicine_link_ajax, name='hog_medicine_link_ajax'),
+    path('hogs/<int:pk>/medicines/ajax/unlink/<int:rid>/', views.hog_medicine_unlink_ajax, name='hog_medicine_unlink_ajax'),
+
     # inventory + expenses
     path('inventory/', views.inventory_page, name='inventory'),
     path('inventory/ajax/save/', views.inventory_save_ajax, name='inventory_save_ajax'),

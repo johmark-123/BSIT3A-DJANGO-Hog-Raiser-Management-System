@@ -24,7 +24,7 @@ from .automation import run_automation_for_owner
 from .feeding import suggest_feeding
 from .models import (
     AIConsultation, Alert, CareSchedule, Expense, FeedingRecord,
-    HealthReport, Hog, InventoryItem, Medicine, ReferenceArticle, WeightRecord,
+    HealthReport, Hog, HogMedicine, InventoryItem, Medicine, ReferenceArticle, WeightRecord,
 )
 
 User = get_user_model()
@@ -471,6 +471,76 @@ def medicine_delete_ajax(request, pk):
         return JsonResponse({'error': 'Only admins manage the medicine library.'}, status=403)
     get_object_or_404(Medicine, pk=pk).delete()
     return JsonResponse({'status': 'deleted'})
+
+
+# ------------------------------------------------------------ hog <-> medicine links (API)
+def hog_medicines_list_ajax(request, pk):
+    hog = get_object_or_404(Hog, pk=pk)
+    links = hog.hog_medicines.select_related('medicine', 'administered_by').order_by('-administered_date', '-id')
+    data = [{
+        'id': l.id,
+        'hog_id': hog.id,
+        'medicine_id': l.medicine_id,
+        'medicine_name': l.medicine.name,
+        'administered_date': str(l.administered_date),
+        'dosage': l.dosage,
+        'route': l.route,
+        'route_display': l.get_route_display(),
+        'notes': l.notes,
+        'withdrawal_until': str(l.withdrawal_until) if l.withdrawal_until else '',
+        'administered_by': l.administered_by.username if l.administered_by else '',
+    } for l in links]
+    return JsonResponse({'status': 'success', 'hog_id': hog.id, 'data': data, 'count': len(data)})
+
+
+def _parse_body(request):
+    if request.content_type and 'application/json' in request.content_type:
+        try:
+            import json
+            return json.loads(request.body or b'{}')
+        except (ValueError, TypeError):
+            return {}
+    return request.POST.dict() if hasattr(request.POST, 'dict') else {}
+
+
+@require_POST
+def hog_medicine_link_ajax(request, pk):
+    hog = get_object_or_404(Hog, pk=pk)
+    data = _parse_body(request)
+    medicine_id = data.get('medicine_id') or data.get('medicine')
+    if not medicine_id:
+        return JsonResponse({'error': 'medicine_id is required.'}, status=400)
+    medicine = get_object_or_404(Medicine, pk=medicine_id)
+    administered_date = data.get('administered_date') or timezone.localdate()
+    try:
+        from datetime import date
+        if isinstance(administered_date, str):
+            administered_date = date.fromisoformat(administered_date)
+    except ValueError:
+        return JsonResponse({'error': 'Invalid administered_date (use YYYY-MM-DD).'}, status=400)
+    health_report = None
+    hr_id = data.get('health_report_id')
+    if hr_id:
+        health_report = get_object_or_404(HealthReport, pk=hr_id, hog=hog)
+    link = HogMedicine.objects.create(
+        hog=hog, medicine=medicine, health_report=health_report,
+        administered_date=administered_date,
+        dosage=str(data.get('dosage', '')).strip()[:120],
+        route=data.get('route', 'oral'),
+        notes=data.get('notes', ''),
+        administered_by=_effective_owner(request),
+    )
+    messages.success(request, f'{medicine.name} linked to {hog.code}.')
+    return JsonResponse({'status': 'success', 'id': link.id, 'hog_id': hog.id,
+                        'medicine_id': medicine.id, 'withdrawal_until': str(link.withdrawal_until or '')})
+
+
+@require_POST
+def hog_medicine_unlink_ajax(request, pk, rid):
+    hog = get_object_or_404(Hog, pk=pk)
+    link = get_object_or_404(HogMedicine, pk=rid, hog=hog)
+    link.delete()
+    return JsonResponse({'status': 'deleted', 'hog_id': hog.id})
 
 
 # ------------------------------------------------------------ inventory + expenses (public, shared)
