@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import ai_service
-from .automation import run_automation_for_owner
+from .automation import _recent_duplicate, run_automation_for_owner
 from .feeding import suggest_feeding
 from .models import (
     AIConsultation, Alert, CareSchedule, Expense, FeedingRecord,
@@ -473,6 +473,17 @@ def medicine_delete_ajax(request, pk):
     return JsonResponse({'status': 'deleted'})
 
 
+def medicine_search_ajax(request):
+    q = request.GET.get('q', '').strip()
+    qs = Medicine.objects.all().order_by('name')
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(active_ingredient__icontains=q) | Q(intended_use__icontains=q))
+    data = [{'id': m.id, 'name': m.name, 'active_ingredient': m.active_ingredient,
+             'intended_use': m.intended_use, 'withdrawal_days': m.withdrawal_days}
+            for m in qs[:20]]
+    return JsonResponse({'status': 'success', 'query': q, 'count': len(data), 'data': data})
+
+
 # ------------------------------------------------------------ hog <-> medicine links (API)
 def hog_medicines_list_ajax(request, pk):
     hog = get_object_or_404(Hog, pk=pk)
@@ -541,6 +552,50 @@ def hog_medicine_unlink_ajax(request, pk, rid):
     link = get_object_or_404(HogMedicine, pk=rid, hog=hog)
     link.delete()
     return JsonResponse({'status': 'deleted', 'hog_id': hog.id})
+
+
+@require_POST
+def medication_automation_ajax(request, pk=None):
+    owner = _effective_owner(request)
+    if pk:
+        hogs = [get_object_or_404(Hog, pk=pk)]
+    else:
+        hogs = list(Hog.objects.filter(owner=owner).exclude(status__in=['sold', 'deceased']))
+        if not hogs:
+            hogs = list(Hog.objects.exclude(status__in=['sold', 'deceased']))
+    links_out = []
+    created_alerts = 0
+    today = timezone.localdate()
+    for hog in hogs:
+        # active withdrawal periods
+        for link in hog.hog_medicines.select_related('medicine').filter(withdrawal_until__gte=today):
+            links_out.append({
+                'hog_id': hog.id,
+                'hog_code': hog.code,
+                'medicine_id': link.medicine_id,
+                'medicine_name': link.medicine.name,
+                'withdrawal_until': str(link.withdrawal_until),
+                'url': f'/farm/hogs/{hog.id}/',
+            })
+        # hogs with open health reports but no recent medication link
+        open_reports = HealthReport.objects.filter(hog=hog, status__in=['open', 'monitoring']).exists()
+        recent_med = hog.hog_medicines.filter(administered_date__gte=today - timedelta(days=7)).exists()
+        if open_reports and not recent_med and not _recent_duplicate(owner, hog, AlertType.HEALTH_CONCERN):
+            from .automation import _create
+            alert = _create(owner, hog, AlertType.HEALTH_CONCERN,
+                            f'Medication review: {hog.display_name}',
+                            'Open health case with no recent medication link.',
+                            f'Review medicines: /farm/medicines/ and link via /farm/hogs/{hog.id}/medicines/ajax/link/',
+                            AlertSeverity.WARNING)
+            if alert:
+                created_alerts += 1
+    return JsonResponse({
+        'status': 'success',
+        'hogs': len(hogs),
+        'created_alerts': created_alerts,
+        'active_withdrawals': len(links_out),
+        'links': links_out,
+    })
 
 
 # ------------------------------------------------------------ inventory + expenses (public, shared)
