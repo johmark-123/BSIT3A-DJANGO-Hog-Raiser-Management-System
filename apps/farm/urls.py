@@ -24,6 +24,7 @@ urlpatterns = [
     # care
     path('care/', views.care_page, name='care'),
     path('care/ajax/save/', views.care_save_ajax, name='care_save_ajax'),
+    path('care/ajax/ai-recommendation/<int:pk>/', views.care_ai_recommendation_ajax, name='care_ai_recommendation_ajax'),
     path('care/ajax/toggle/<int:pk>/', views.care_toggle_ajax, name='care_toggle_ajax'),
     path('care/ajax/delete/<int:pk>/', views.care_delete_ajax, name='care_delete_ajax'),
 

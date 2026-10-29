@@ -1,19 +1,16 @@
-from django.contrib.auth import get_user_model
-from django.test import TestCase
-from django.urls import reverse
+from django.test import SimpleTestCase
+from django.urls import Resolver404, resolve
 
 
-class HomeViewTests(TestCase):
-    def test_home_renders_for_authenticated_user(self):
-        user = get_user_model().objects.create_user(username='admin', password='secret1234')
+class MainDashboardTests(SimpleTestCase):
+    def test_root_displays_login_page(self):
+        self.assertEqual(resolve('/').func, resolve('/login/').func)
+        self.assertEqual(resolve('/').url_name, 'root')
 
-        self.client.force_login(user)
-        response = self.client.get(reverse('dashboard'))
+    def test_login_route_remains_available(self):
+        self.assertEqual(resolve('/login/').url_name, 'login')
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'home.html')
-
-    def test_home_requires_login(self):
-        response = self.client.get(reverse('dashboard'))
-
-        self.assertEqual(response.status_code, 302)
+    def test_removed_legacy_sections_are_not_routed(self):
+        for path in ('/home/', '/users/', '/info/'):
+            with self.subTest(path=path), self.assertRaises(Resolver404):
+                resolve(path)

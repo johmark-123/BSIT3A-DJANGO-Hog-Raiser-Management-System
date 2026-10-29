@@ -5,9 +5,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>
-    Sign in - Azuelo Technology
-  </title>
+  <title>Sign in - Hog Raiser Management System</title>
+  <link rel="icon" href="{% static 'images/hog-raiser-logo.svg' %}" type="image/svg+xml" />
   <link href="{% static 'libs/jsvectormap/dist/jsvectormap.css' %}" rel="stylesheet" />
   <link href="{% static 'css/tabler.css' %}" rel="stylesheet" />
   <link href="{% static 'css/tabler-flags.css' %}" rel="stylesheet" />
@@ -17,19 +16,36 @@
   <link href="{% static 'css/tabler-marketing.css' %}" rel="stylesheet" />
   <link href="{% static 'css/tabler-themes.css' %}" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body.auth-login {
+      background: linear-gradient(145deg, #f3f4fb 0%, #ffffff 58%, #fff8eb 100%);
+    }
+
+    .auth-login-card {
+      border: 1px solid rgba(35, 39, 65, 0.08);
+      border-radius: 1rem;
+      box-shadow: 0 16px 40px rgba(35, 39, 65, 0.1);
+    }
+
+    .auth-login-card .form-control:focus {
+      border-color: #8b8df5;
+      box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.14);
+    }
+  </style>
 </head>
 
-<body>
+<body class="auth-login">
   <script src="{% static 'js/tabler-theme.js' %}"></script>
   <div class="page page-center">
     <div class="container container-tight py-4">
 
-     <div class="card card-md">
+     <div class="card card-md auth-login-card">
       <div class="card-body">
 
-        <center class="mt-n4">
-        <i class='far fa-calendar' style='font-size:40px'></i>
-        </center>
+        <div class="text-center mb-3">
+          <img src="{% static 'images/hog-raiser-logo.svg' %}" alt="Hog Raiser logo" width="56" height="56">
+          <div class="fw-bold mt-2">Hog Raiser</div>
+        </div>
         <h2 class="h3 text-center mb-4">Sign in to start your session</h2>
 
         <form method="post">

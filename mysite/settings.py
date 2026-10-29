@@ -125,7 +125,7 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-LOGIN_REDIRECT_URL = '/home/'
+LOGIN_REDIRECT_URL = '/farm/'
 LOGOUT_REDIRECT_URL = '/'
 
 MEDIA_URL = '/media/'

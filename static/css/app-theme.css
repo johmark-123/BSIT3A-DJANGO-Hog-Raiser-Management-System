@@ -258,6 +258,11 @@ html {
   box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--tblr-primary) 80%, transparent);
 }
 
+.dh-brand-mark img {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
 .dh-brand-name {
   display: block;
   font-weight: 800;

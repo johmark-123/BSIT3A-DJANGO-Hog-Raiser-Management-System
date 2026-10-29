@@ -119,7 +119,7 @@ def dashboard(request):
 
 
 @login_required(login_url='login')
-@user_passes_test(_is_admin, login_url='dashboard')
+@user_passes_test(_is_admin, login_url='login')
 def admin_overview(request):
     total_users = User.objects.count()
     total_hogs = Hog.objects.count()
@@ -302,7 +302,42 @@ def care_page(request):
     paginator = Paginator(qs, 15)
     tasks = paginator.get_page(request.GET.get('page', 1))
     hogs = Hog.objects.all()
-    return render(request, 'farm/care.html', {'tasks': tasks, 'hogs': hogs, 'status': status})
+    monitors = []
+    for hog in Hog.objects.exclude(status__in=['sold', 'deceased']).prefetch_related('weights', 'feedings'):
+        feeding_plan = suggest_feeding(hog)
+        latest_feeding = hog.feedings.first()
+        weight_progress = 0
+        if hog.current_weight_kg and hog.target_weight_kg and hog.target_weight_kg > 0:
+            weight_progress = min(
+                100, round(float(hog.current_weight_kg) / float(hog.target_weight_kg) * 100)
+            )
+        monitors.append({
+            'hog': hog,
+            'plan': feeding_plan,
+            'latest_feeding': latest_feeding,
+            'growth': hog.growth_status(),
+            'adg': hog.average_daily_gain(),
+            'weight_progress': weight_progress,
+            'latest_weight': hog.weights.first(),
+        })
+    return render(request, 'farm/care.html', {
+        'tasks': tasks, 'hogs': hogs, 'status': status, 'monitors': monitors,
+    })
+
+
+@require_POST
+def care_ai_recommendation_ajax(request, pk):
+    hog = get_object_or_404(Hog, pk=pk)
+    feeding_plan = suggest_feeding(hog)
+    latest_feeding = hog.feedings.first()
+    result = ai_service.recommend_growth_and_feeding(hog, feeding_plan, latest_feeding)
+    AIConsultation.objects.create(
+        owner=_effective_owner(request),
+        hog=hog,
+        question='Generate a growth and feeding recommendation from the care monitoring page.',
+        answer=result['recommendation'][:4000],
+    )
+    return JsonResponse(result)
 
 
 @require_POST
@@ -427,12 +462,22 @@ def assistant_ask_ajax(request):
 # ------------------------------------------------------------ medicines: read public, manage admin-only
 def medicine_page(request):
     q = request.GET.get('q', '').strip()
+    all_medicines = list(Medicine.objects.all().order_by('name'))
     qs = Medicine.objects.all().order_by('name')
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(active_ingredient__icontains=q) | Q(intended_use__icontains=q))
     paginator = Paginator(qs, 12)
     meds = paginator.get_page(request.GET.get('page', 1))
-    return render(request, 'farm/medicines.html', {'meds': meds, 'query': q})
+    reports = HealthReport.objects.filter(
+        status__in=['open', 'monitoring', 'referred'],
+    ).select_related('hog').order_by('-created_at')[:10]
+    medication_references = [{
+        'report': report,
+        'matches': ai_service.match_medicine_references(report.symptoms, all_medicines),
+    } for report in reports]
+    return render(request, 'farm/medicines.html', {
+        'meds': meds, 'query': q, 'medication_references': medication_references,
+    })
 
 
 @login_required(login_url='login')

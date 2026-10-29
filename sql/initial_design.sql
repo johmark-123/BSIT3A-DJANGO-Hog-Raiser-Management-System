@@ -1,6 +1,22 @@
--- Hog Raiser Management System — initial database design
--- Generated from Django migrations: apps/farm/migrations/0001_initial.py + apps/info/migrations/0001_initial.py
--- Dialect: SQLite (dev). Tables: farm_* (hog, weights, feeding, care, health, medicine, inventory, expense, alert, reference, ai_chat) + tblinfo.
+-- Hog Raiser Management System - initial database design
+-- Dialect: SQLite
+-- Source: apps/farm/migrations/0001_initial.py and apps/info/migrations/0001_initial.py
+--
+-- This file documents the application tables for a fresh database. Django's
+-- built-in auth_user table must exist before applying these foreign keys.
+-- For normal setup and upgrades, use `python manage.py migrate` instead.
+--
+-- Table relationships:
+--   auth_user 1---many farm_hog, farm_health (reporter), farm_expense,
+--                    farm_care, farm_alert, farm_ai_chat, farm_inventory
+--   auth_user 1---many tblinfo (optional)
+--   farm_hog  1---many farm_weight, farm_feeding, farm_health
+--   farm_hog  1---many farm_expense, farm_care, farm_alert, farm_ai_chat
+--   farm_medicine and farm_reference are standalone library tables.
+--
+-- The users and core apps do not define additional application models.
+
+PRAGMA foreign_keys = ON;
 
 BEGIN;
 --
@@ -71,4 +87,3 @@ BEGIN;
 CREATE TABLE "tblinfo" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(255) NOT NULL, "age" integer unsigned NOT NULL CHECK ("age" >= 0), "address" varchar(255) NOT NULL, "email" varchar(255) NOT NULL, "created_at" datetime NOT NULL, "updated_at" datetime NOT NULL, "user_id" integer NULL REFERENCES "auth_user" ("id") DEFERRABLE INITIALLY DEFERRED);
 CREATE INDEX "tblinfo_user_id_4a36749d" ON "tblinfo" ("user_id");
 COMMIT;
-
