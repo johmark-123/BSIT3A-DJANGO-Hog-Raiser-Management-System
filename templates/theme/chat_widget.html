@@ -1,0 +1,133 @@
+<div id="farmChatWidget" class="farm-chat" data-url="{% url 'farm:chat_ajax' %}">
+  <button type="button" id="farmChatToggle" class="farm-chat-toggle" aria-label="Open farm assistant">
+    <i class="fas fa-comments"></i>
+    <span class="farm-chat-label">Ask AI</span>
+  </button>
+
+  <div id="farmChatPanel" class="farm-chat-panel d-none" role="dialog" aria-label="Farm assistant chat">
+    <div class="farm-chat-header">
+      <div>
+        <div class="fw-bold">Farm Assistant</div>
+        <div class="small">Medicines | Feeds | Sell readiness</div>
+      </div>
+      <button type="button" id="farmChatClose" class="btn-close" aria-label="Close"></button>
+    </div>
+
+    <div id="farmChatLog" class="farm-chat-log">
+      <div class="farm-chat-msg bot">Hi! Ask me to search hog medicines or feeds, or check if a hog is ready to sell. Example: "Is HOG-001 ready to sell?"</div>
+    </div>
+
+    <div class="farm-chat-quick">
+      <button type="button" class="farm-chat-chip" data-chat-quick="Search medicine amoxicillin">Medicine search</button>
+      <button type="button" class="farm-chat-chip" data-chat-quick="Search feed grower">Feed search</button>
+      <button type="button" class="farm-chat-chip" data-chat-quick="Is this hog ready to sell?">Sell check</button>
+    </div>
+
+    <form id="farmChatForm" class="farm-chat-form">
+      {% csrf_token %}
+      <label for="farmChatHog" class="form-label small mb-1">Hog (optional, for sell check)</label>
+      <select name="hog_id" id="farmChatHog" class="form-select form-select-sm mb-2">
+        <option value="">Auto-detect from message</option>
+        {% for h in chat_hogs %}<option value="{{ h.id }}">{{ h.label }}</option>{% endfor %}
+      </select>
+      <div class="input-group">
+        <input name="message" id="farmChatInput" class="form-control" placeholder="Search medicine, feed, or sell readiness..." autocomplete="off" required>
+        <button class="btn btn-primary" type="submit" id="farmChatSend" aria-label="Send"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var widget = document.getElementById('farmChatWidget');
+  if (!widget) return;
+  var panel = document.getElementById('farmChatPanel');
+  var log = document.getElementById('farmChatLog');
+  var form = document.getElementById('farmChatForm');
+  var input = document.getElementById('farmChatInput');
+  var toggle = document.getElementById('farmChatToggle');
+  var close = document.getElementById('farmChatClose');
+  var send = document.getElementById('farmChatSend');
+  var url = widget.dataset.url;
+
+  function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, function (ch) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch];
+    });
+  }
+
+  function formatAnswer(text) {
+    var safe = escapeHtml(text);
+    safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    safe = safe.replace(/^#{1,6}\s*(.+)$/gm, '<strong>$1</strong>');
+    safe = safe.replace(/^\s*[-*]\s+/gm, '• ');
+    safe = safe.replace(/^---+$/gm, '');
+    return safe;
+  }
+
+  function addMessage(text, who, asHtml) {
+    var div = document.createElement('div');
+    div.className = 'farm-chat-msg ' + who;
+    if (asHtml) {
+      div.innerHTML = formatAnswer(text);
+    } else {
+      div.textContent = text;
+    }
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+
+  function openPanel() {
+    panel.classList.remove('d-none');
+    toggle.classList.add('d-none');
+    input.focus();
+  }
+
+  function closePanel() {
+    panel.classList.add('d-none');
+    toggle.classList.remove('d-none');
+  }
+
+  toggle.addEventListener('click', openPanel);
+  close.addEventListener('click', closePanel);
+
+  document.querySelectorAll('[data-chat-quick]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      input.value = btn.dataset.chatQuick;
+      form.requestSubmit();
+    });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var message = input.value.trim();
+    if (!message) return;
+    addMessage(message, 'user');
+    var payload = new FormData(form);
+    input.value = '';
+    send.disabled = true;
+    var thinking = addMessage('Checking farm records...', 'bot farm-chat-thinking');
+
+    fetch(url, {
+      method: 'POST',
+      headers: {'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value},
+      body: payload
+    })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        thinking.remove();
+        addMessage(data.answer || data.error || 'No response.', 'bot', true);
+      })
+      .catch(function () {
+        thinking.remove();
+        addMessage('Sorry, the assistant could not be reached. Please try again.', 'bot');
+      })
+      .finally(function () {
+        send.disabled = false;
+        input.focus();
+      });
+  });
+})();
+</script>

@@ -67,6 +67,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.farm.context_processors.chat_widget',
             ],
         },
     },
@@ -133,7 +134,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # --- Hog Raiser AI integrations (keys stay on server; never expose to templates)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-1.5-flash')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.7-flash')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 OPENROUTER_MODEL = os.environ.get('OPENROUTER_MODEL', 'meta-llama/llama-3-8b-instruct')
 OPENROUTER_REFERER = os.environ.get('OPENROUTER_REFERER', 'http://localhost')

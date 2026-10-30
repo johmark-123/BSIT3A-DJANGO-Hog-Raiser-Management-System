@@ -46,6 +46,8 @@
    
     {% include 'theme/settings.html' %}
 
+    {% if chat_widget_enabled %}{% include 'theme/chat_widget.html' %}{% endif %}
+
     <script src="{% static 'js/tabler-theme.js' %}"></script>
     <script src="{% static 'libs/apexcharts/dist/apexcharts.min.js' %}" defer></script>
     <script src="{% static 'libs/jsvectormap/dist/jsvectormap.min.js' %}" defer></script>

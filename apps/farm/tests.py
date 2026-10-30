@@ -8,7 +8,10 @@ from django.utils import timezone
 from apps.farm import ai_service
 from apps.farm.automation import run_automation_for_owner
 from apps.farm.feeding import suggest_feeding
-from apps.farm.models import Alert, Expense, HealthReport, Hog, InventoryItem, WeightRecord
+from apps.farm.models import (
+    Alert, Expense, HealthReport, Hog, HogMedicine, InventoryItem, Medicine,
+    WeightRecord,
+)
 
 User = get_user_model()
 
@@ -106,3 +109,77 @@ class DashboardTests(TestCase):
                                expense_date=timezone.localdate())
         self.assertEqual(float(hog.total_expenses()), 5500.0)
         self.assertAlmostEqual(hog.estimated_profit(price_per_kg=180), 95 * 180 - 5500)
+
+
+class FarmChatTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='chatuser', password='secret1234')
+        self.hog = Hog.objects.create(
+            owner=self.user, code='CHAT-001', name='Bebe',
+            birth_date=timezone.localdate() - timedelta(days=160),
+            current_weight_kg=105, target_weight_kg=100)
+
+    def test_medicine_search(self):
+        Medicine.objects.create(name='Amoxicillin', active_ingredient='amoxicillin',
+                                intended_use='Bacterial infections', withdrawal_days=7)
+        resp = self.client.post(reverse('farm:chat_ajax'),
+                                {'message': 'search medicine amoxicillin'})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['intent'], 'medicine')
+        self.assertIn('Amoxicillin', data['answer'])
+        self.assertIn('withdrawal', data['answer'].lower())
+
+    def test_feed_search(self):
+        InventoryItem.objects.create(owner=self.user, name='Grower Feed',
+                                     category='feed', quantity=25, unit='kg')
+        resp = self.client.post(reverse('farm:chat_ajax'),
+                                {'message': 'search feed grower'})
+        data = resp.json()
+        self.assertEqual(data['intent'], 'feed')
+        self.assertIn('Grower Feed', data['answer'])
+
+    def test_sell_ready(self):
+        resp = self.client.post(reverse('farm:chat_ajax'),
+                                {'message': 'is CHAT-001 ready to sell?'})
+        data = resp.json()
+        self.assertEqual(data['intent'], 'sell')
+        self.assertIn('READY TO SELL', data['answer'])
+        self.assertNotIn('NOT READY TO SELL', data['answer'])
+
+    def test_sell_blocked_by_withdrawal(self):
+        med = Medicine.objects.create(name='Oxytetracycline',
+                                      intended_use='infection', withdrawal_days=14)
+        HogMedicine.objects.create(
+            hog=self.hog, medicine=med,
+            administered_date=timezone.localdate(),
+            withdrawal_until=timezone.localdate() + timedelta(days=10))
+        resp = self.client.post(reverse('farm:chat_ajax'),
+                                {'message': 'is CHAT-001 ready to sell?'})
+        answer = resp.json()['answer']
+        self.assertIn('NOT READY TO SELL', answer)
+        self.assertIn('withdrawal', answer.lower())
+
+    def test_sell_blocked_by_open_health_case(self):
+        HealthReport.objects.create(hog=self.hog, reported_by=self.user,
+                                    symptoms='coughing', status='open')
+        resp = self.client.post(reverse('farm:chat_ajax'),
+                                {'message': 'ready to sell CHAT-001'})
+        self.assertIn('NOT READY TO SELL', resp.json()['answer'])
+
+    def test_sell_not_ready_underweight(self):
+        Hog.objects.create(
+            owner=self.user, code='CHAT-002',
+            birth_date=timezone.localdate() - timedelta(days=140),
+            current_weight_kg=80, target_weight_kg=100)
+        resp = self.client.post(reverse('farm:chat_ajax'),
+                                {'message': 'is CHAT-002 ready to sell?'})
+        answer = resp.json()['answer']
+        self.assertIn('NOT READY TO SELL', answer)
+        self.assertIn('below the target', answer)
+
+    def test_sell_check_uses_selected_hog(self):
+        resp = self.client.post(reverse('farm:chat_ajax'),
+                                {'message': 'is this ready to sell?',
+                                 'hog_id': self.hog.id})
+        self.assertIn('READY TO SELL', resp.json()['answer'])

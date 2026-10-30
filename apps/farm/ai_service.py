@@ -7,6 +7,7 @@
 
 import json
 import logging
+import urllib.error
 import urllib.request
 
 from django.conf import settings
@@ -96,23 +97,48 @@ def _post_json(url, payload, headers, timeout=25):
         return json.loads(resp.read().decode())
 
 
+GEMINI_FALLBACK_MODELS = (
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+    'gemini-3.1-flash-lite',
+)
+
+
 def _call_gemini(prompt, system=''):
     key = getattr(settings, 'GEMINI_API_KEY', '') or ''
     if not key:
         return None
-    model = getattr(settings, 'GEMINI_MODEL', 'gemini-1.5-flash')
-    url = (f'https://generativelanguage.googleapis.com/v1beta/models/{model}'
-           f':generateContent?key={key}')
+    configured = getattr(settings, 'GEMINI_MODEL', 'gemini-3.7-flash')
+    models = []
+    for model in (configured, *GEMINI_FALLBACK_MODELS):
+        if model and model not in models:
+            models.append(model)
     payload = {'contents': [{'parts': [{'text': (system + "\n\n" + prompt) if system else prompt}]}],
                'generationConfig': {'temperature': 0.4, 'maxOutputTokens': 800}}
-    try:
-        data = _post_json(url, payload, {})
-        parts = data.get('candidates', [{}])[0].get('content', {}).get('parts', [])
-        text = ' '.join(p.get('text', '') for p in parts).strip()
-        return text or None
-    except Exception as exc:  # noqa: BLE001 - fallback to rules
-        logger.warning('Gemini call failed: %s', exc)
-        return None
+    for index, model in enumerate(models):
+        url = (f'https://generativelanguage.googleapis.com/v1beta/models/{model}'
+               f':generateContent?key={key}')
+        try:
+            data = _post_json(url, payload, {}, timeout=45 if index == 0 else 20)
+            parts = data.get('candidates', [{}])[0].get('content', {}).get('parts', [])
+            text = ' '.join(p.get('text', '') for p in parts).strip()
+            if text:
+                return text
+        except urllib.error.HTTPError as exc:
+            if exc.code in (404, 429, 503):
+                logger.warning('Gemini model %s unavailable (HTTP %s); trying next.',
+                               model, exc.code)
+                continue
+            logger.warning('Gemini call failed for %s: HTTP %s', model, exc.code)
+            return None
+        except Exception as exc:  # noqa: BLE001 - fallback to rules
+            logger.warning('Gemini call failed for %s: %s', model, exc)
+            if index < 2:
+                continue
+            return None
+    return None
 
 
 def _call_openrouter(prompt, system=''):
@@ -197,6 +223,45 @@ def answer_question(question, context=''):
                     'Tell me the hog code, age/weight, and what you observe.' + SAFETY_FOOTER)
         return {'answer': text, 'provider': 'rules'}
     return {'answer': text + SAFETY_FOOTER, 'provider': 'ai'}
+
+
+CHAT_SYSTEM = (
+    'You are the AI Farm Assistant for a hog-raising management system in the Philippines. '
+    'Use the computed local records as the source of truth. '
+    'For sell-readiness questions: the computed verdict is final. Do not change or '
+    'contradict it; explain the reasons and give practical next steps. '
+    'For medicine questions: summarize only the matched medicine entries, including '
+    'intended use, withdrawal days, and prescription flags. Never invent medicines, '
+    'products, prices, or dosages that are not in the records. Never prescribe specific '
+    'dosages or a diagnosis. '
+    'For feed questions: use the stock and feeding guide provided; recommend gradual '
+    'feed changes and clean water. '
+    'For general questions: give practical hog-raising guidance. '
+    'Reply in English or Filipino, concise and well organized. '
+    'Always remind the farmer to consult a licensed veterinarian before giving medicine.'
+)
+
+
+def answer_chat(question, local_answer, context='', mode='general'):
+    """Use Gemini/OpenRouter to turn local farm records into a solution.
+
+    Falls back to the deterministic local answer when no key is configured or the
+    provider call fails. The safety footer is always appended.
+    """
+    prompt = (
+        f'Mode: {mode}\n'
+        f'Farmer question: {question}\n\n'
+        f'Computed local answer / records:\n{local_answer[:3000]}\n\n'
+        f'Additional farm context:\n{context[:1500]}'
+    )
+    text = _call_gemini(prompt, CHAT_SYSTEM)
+    provider = 'gemini'
+    if not text:
+        text = _call_openrouter(prompt, CHAT_SYSTEM)
+        provider = 'openrouter'
+    if not text:
+        return {'answer': local_answer, 'provider': 'rules'}
+    return {'answer': text.strip() + SAFETY_FOOTER, 'provider': provider}
 
 
 def summarize_farm(owner, stats):

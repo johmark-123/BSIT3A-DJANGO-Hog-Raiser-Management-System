@@ -6,6 +6,7 @@ Shared-farm model: public visitors see the same shared records; writes by
 anonymous visitors are attributed to a shared 'public-farm' owner account.
 """
 
+import re
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -21,10 +22,11 @@ from django.views.decorators.http import require_POST
 
 from . import ai_service
 from .automation import _recent_duplicate, run_automation_for_owner
-from .feeding import suggest_feeding
+from .feeding import FEED_GUIDE, suggest_feeding
 from .models import (
-    AIConsultation, Alert, CareSchedule, Expense, FeedingRecord,
-    HealthReport, Hog, HogMedicine, InventoryItem, Medicine, ReferenceArticle, WeightRecord,
+    AIConsultation, Alert, AlertSeverity, AlertType, CareSchedule, Expense,
+    FeedingRecord, HealthReport, Hog, HogMedicine, InventoryItem, Medicine,
+    ReferenceArticle, WeightRecord,
 )
 
 User = get_user_model()
@@ -422,6 +424,332 @@ def assistant_ask_ajax(request):
     AIConsultation.objects.create(owner=owner, hog=hog, question=question,
                                   answer=result['answer'][:4000])
     return JsonResponse({'status': 'success', 'answer': result['answer'], 'provider': result['provider']})
+
+
+# ------------------------------------------------------------ floating chat widget
+CHAT_SELL_WORDS = (
+    'sell', 'sold', 'sale', 'market', 'benta', 'ibenta', 'ready', 'pwede na',
+    'slaughter', 'katay', 'for sale',
+)
+CHAT_MED_WORDS = (
+    'medicine', 'medicines', 'med', 'meds', 'gamot', 'drug', 'antibiotic',
+    'vaccine', 'deworm', 'prescription', 'withdrawal',
+)
+CHAT_FEED_WORDS = (
+    'feed', 'feeds', 'pakain', 'kain', 'grower', 'starter', 'finisher',
+    'pre-starter', 'prestarter', 'vitamin', 'diet', 'nutrition', 'corn',
+    'rice bran', 'soy',
+)
+CHAT_STOPWORDS = {
+    'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'am', 'do', 'does',
+    'did', 'can', 'could', 'should', 'would', 'will', 'what', 'whats', 'which',
+    'who', 'for', 'to', 'of', 'in', 'on', 'at', 'and', 'or', 'me', 'my',
+    'our', 'i', 'please', 'search', 'find', 'show', 'list', 'look', 'up',
+    'about', 'info', 'information', 'medicine', 'medicines', 'med', 'meds',
+    'gamot', 'feed', 'feeds', 'pakain', 'kain', 'ready', 'sell', 'sold',
+    'sale', 'market', 'benta', 'ibenta', 'pwede', 'na', 'ba', 'po', 'ng',
+    'sa', 'ang', 'mga', 'hog', 'hogs', 'baboy', 'whether', 'its', 'it',
+    'this', 'that', 'check', 'if', 'stock', 'available', 'have', 'has',
+    'any', 'there', 'here', 'with', 'vitamin', 'vitamins', 'diet',
+    'nutrition', 'plan', 'schedule', 'price', 'cost', 'withdrawal',
+}
+
+
+def _has_words(low, words):
+    """True when any keyword appears as a whole word/phrase."""
+    return any(
+        re.search(r'(?<![a-z])' + re.escape(word) + r'(?![a-z])', low)
+        for word in words
+    )
+
+
+def _chat_terms(message, exclude=()):
+    """Extract searchable words from a chat message."""
+    low = (message or '').lower()
+    for item in exclude:
+        if item and len(str(item)) >= 2:
+            low = low.replace(str(item).lower(), ' ')
+    words = re.findall(r'[a-zA-Z0-9][a-zA-Z0-9._-]*', low)
+    return [w for w in words if len(w) >= 2 and w not in CHAT_STOPWORDS]
+
+
+def _match_hog(message, hog_id=None):
+    """Resolve a hog from the dropdown, then from the message text."""
+    if hog_id:
+        try:
+            hog = Hog.objects.filter(pk=hog_id).first()
+        except (TypeError, ValueError):
+            hog = None
+        if hog:
+            return hog
+    low = (message or '').lower()
+    for hog in Hog.objects.exclude(status__in=['sold', 'deceased']).order_by('code'):
+        for candidate in (hog.code, hog.name):
+            if candidate and len(candidate) >= 2 and re.search(
+                    r'(?<![a-z0-9])' + re.escape(candidate.lower()) + r'(?![a-z0-9])', low):
+                return hog
+    return None
+
+
+def _sell_readiness(hog):
+    """Weight + withdrawal + health checks for market readiness."""
+    today = timezone.localdate()
+    blockers, checks = [], []
+    weight = float(hog.current_weight_kg or 0)
+    target = float(hog.target_weight_kg or 100)
+
+    if hog.status in ('sold', 'deceased'):
+        blockers.append(f'Status is already {hog.get_status_display().lower()}.')
+    if weight <= 0:
+        blockers.append('No current weight recorded - add a weight record first.')
+    elif weight >= target:
+        checks.append(f'Weight {weight:.1f} kg meets the target of {target:.1f} kg.')
+    else:
+        remaining = target - weight
+        msg = f'Weight {weight:.1f} kg is {remaining:.1f} kg below the target of {target:.1f} kg.'
+        eta = hog.predicted_market_date()
+        if eta:
+            msg += f' Estimated market date: {eta:%b %d, %Y}.'
+        else:
+            msg += ' Add more weight records to estimate the market date.'
+        blockers.append(msg)
+
+    active = list(hog.hog_medicines.filter(withdrawal_until__gte=today)
+                  .select_related('medicine').order_by('withdrawal_until'))
+    if active:
+        for link in active:
+            days = (link.withdrawal_until - today).days
+            blockers.append(
+                f'Active withdrawal: {link.medicine.name} until '
+                f'{link.withdrawal_until:%b %d, %Y} ({days} day(s) left).')
+    else:
+        checks.append('No active medicine withdrawal period.')
+
+    open_reports = list(hog.health_reports.filter(
+        status__in=['open', 'monitoring', 'referred']).order_by('-created_at')[:3])
+    if open_reports:
+        for rep in open_reports:
+            blockers.append(
+                f'Open health case ({rep.get_urgency_display()}): {rep.symptoms[:100]}')
+    else:
+        checks.append('No open health case.')
+
+    growth = hog.growth_status()
+    if growth in ('slow', 'losing'):
+        checks.append(
+            f'Note: growth is {growth} (ADG {hog.average_daily_gain()} kg/day) - '
+            'review feeding before selling.')
+
+    return {'ready': not blockers, 'blockers': blockers, 'checks': checks}
+
+
+def _sell_answer(hog, result):
+    head = 'READY TO SELL' if result['ready'] else 'NOT READY TO SELL'
+    lines = [f'{head} - {hog.code} ({hog.display_name})', '']
+    if result['blockers']:
+        lines.append('Reasons:')
+        lines.extend(f'- {b}' for b in result['blockers'])
+    if result['checks']:
+        if result['blockers']:
+            lines.append('')
+        lines.append('Checks passed:')
+        lines.extend(f'- {c}' for c in result['checks'])
+    return '\n'.join(lines)
+
+
+def _medicine_answer(terms, hog=None):
+    qs = Medicine.objects.all()
+    if terms:
+        query = Q()
+        for term in terms:
+            query |= (Q(name__icontains=term) | Q(active_ingredient__icontains=term)
+                      | Q(intended_use__icontains=term) | Q(precautions__icontains=term))
+        qs = qs.filter(query)
+    total = qs.count()
+    meds = list(qs.order_by('name')[:8])
+
+    stock = InventoryItem.objects.filter(category='medicine')
+    if terms:
+        stock_query = Q()
+        for term in terms:
+            stock_query |= Q(name__icontains=term)
+        stock = stock.filter(stock_query)
+    stock = list(stock.order_by('name')[:8])
+
+    label = ', '.join(terms) if terms else 'all medicines'
+    if meds:
+        lines = [f'Medicine library results for "{label}" ({total} found):']
+        for med in meds:
+            line = f'- {med.name}'
+            if med.active_ingredient:
+                line += f' (active ingredient: {med.active_ingredient})'
+            lines.append(line)
+            lines.append(f'  Use: {med.intended_use[:180]}')
+            extra = f'  Withdrawal: {med.withdrawal_days} day(s)'
+            if med.prescription_required:
+                extra += ' | Prescription required'
+            lines.append(extra)
+            if med.precautions:
+                lines.append(f'  Precautions: {med.precautions[:140]}')
+    else:
+        lines = [f'No medicine in the library matched "{label}".']
+        names = list(Medicine.objects.order_by('name').values_list('name', flat=True)[:8])
+        if names:
+            lines.append('Available medicines: ' + ', '.join(names) + '.')
+
+    if stock:
+        lines.append('')
+        lines.append('Medicine stock on hand:')
+        for item in stock:
+            line = f'- {item.name}: {item.quantity} {item.unit}'
+            if item.is_low:
+                line += ' (LOW STOCK)'
+            if item.expiry_date:
+                line += f' | expires {item.expiry_date:%b %d, %Y}'
+            lines.append(line)
+
+    if hog:
+        active = list(hog.hog_medicines.filter(withdrawal_until__gte=timezone.localdate())
+                      .select_related('medicine').order_by('withdrawal_until'))
+        if active:
+            lines.append('')
+            lines.append(f'Active withdrawal for {hog.code}:')
+            for link in active:
+                days = (link.withdrawal_until - timezone.localdate()).days
+                lines.append(f'- {link.medicine.name} until '
+                             f'{link.withdrawal_until:%b %d, %Y} ({days} day(s) left)')
+
+    return '\n'.join(lines)
+
+
+def _feed_answer(terms, hog=None):
+    stock = InventoryItem.objects.filter(category__in=['feed', 'vitamin'])
+    if terms:
+        stock_query = Q()
+        for term in terms:
+            stock_query |= Q(name__icontains=term)
+        stock = stock.filter(stock_query)
+    stock = list(stock.order_by('name')[:8])
+
+    guide = []
+    for lo, hi, category, kg, note in FEED_GUIDE:
+        haystack = f'{category} {note}'.lower()
+        if not terms or any(term in haystack for term in terms):
+            guide.append((lo, hi, category, kg, note))
+
+    label = ', '.join(terms) if terms else 'all feeds'
+    lines = []
+    if hog:
+        plan = suggest_feeding(hog)
+        weight = f'{hog.current_weight_kg} kg' if hog.current_weight_kg else 'no weight yet'
+        lines.append(f'Feeding plan for {hog.code} ({hog.age_weeks()} weeks, {weight}):')
+        lines.append(f'- Feed: {plan["feed_category"].replace("_", " ").title()} '
+                     f'at about {plan["kg_per_day"]} kg/day')
+        lines.append(f'- Vitamins: {plan["vitamin_plan"]}')
+        lines.append(f'  {plan["explanation"]}')
+        lines.append('')
+
+    if stock:
+        lines.append(f'Feed / vitamin stock matching "{label}":')
+        for item in stock:
+            line = f'- {item.name}: {item.quantity} {item.unit}'
+            if item.is_low:
+                line += ' (LOW STOCK)'
+            if item.expiry_date:
+                line += f' | expires {item.expiry_date:%b %d, %Y}'
+            lines.append(line)
+    else:
+        lines.append(f'No feed or vitamin stock matched "{label}".')
+
+    if guide:
+        if stock:
+            lines.append('')
+        lines.append('Feeding guide by age:')
+        for lo, hi, category, kg, note in guide[:6]:
+            age = f'{lo}-{hi} wks' if hi < 999 else f'{lo}+ wks'
+            lines.append(f'- {age}: {category.replace("_", " ").title()} about '
+                         f'{kg} kg/day. {note}')
+
+    lines.append('')
+    lines.append('Tip: change feeds gradually over 5-7 days and keep clean water '
+                 'available at all times.')
+    return '\n'.join(lines)
+
+
+@require_POST
+def farm_chat_ajax(request):
+    """Chatbox endpoint: medicine search, feed search, sell readiness, AI fallback."""
+    message = request.POST.get('message', '').strip()
+    if not message:
+        return JsonResponse({'error': 'Type a question or search term first.'}, status=400)
+
+    low = message.lower()
+    intent = 'general'
+    if _has_words(low, CHAT_SELL_WORDS):
+        intent = 'sell'
+    elif _has_words(low, CHAT_MED_WORDS):
+        intent = 'medicine'
+    elif _has_words(low, CHAT_FEED_WORDS):
+        intent = 'feed'
+
+    hog = _match_hog(message, request.POST.get('hog_id'))
+    if intent == 'sell' and not hog:
+        active = Hog.objects.exclude(status__in=['sold', 'deceased'])
+        if active.count() == 1:
+            hog = active.first()
+
+    terms = _chat_terms(message, exclude=(hog.code, hog.name) if hog else ())
+
+    if hog:
+        context = (f'Hog {hog.code}: {hog.breed}, {hog.age_weeks()} wks, '
+                   f'{hog.current_weight_kg}kg, stage {hog.stage}, '
+                   f'ADG {hog.average_daily_gain()}, plan {suggest_feeding(hog)}.')
+    else:
+        active_count = Hog.objects.exclude(status__in=['sold', 'deceased']).count()
+        context = (f'Farm has {active_count} active hogs. The chat can also search '
+                   'medicines, search feeds, and check sell readiness.')
+
+    if intent == 'sell':
+        if hog:
+            local_answer = _sell_answer(hog, _sell_readiness(hog))
+            result = ai_service.answer_chat(message, local_answer, context, intent)
+            if result['provider'] == 'rules':
+                answer = local_answer
+            else:
+                answer = (local_answer.rstrip() + '\n\nAI guidance:\n'
+                          + result['answer'])
+            provider = result['provider']
+        else:
+            names = list(Hog.objects.exclude(status__in=['sold', 'deceased'])
+                         .order_by('code').values_list('code', flat=True)[:12])
+            if names:
+                answer = ('Which hog should I check? Pick one in the Hog menu or include '
+                          f'the ear tag in your message. Active hogs: {", ".join(names)}.')
+            else:
+                answer = 'There are no active hogs to check yet. Add a hog first.'
+            provider = 'rules'
+    elif intent == 'medicine':
+        local_answer = _medicine_answer(terms, hog)
+        result = ai_service.answer_chat(message, local_answer, context, intent)
+        answer = result['answer']
+        provider = result['provider']
+    elif intent == 'feed':
+        local_answer = _feed_answer(terms, hog)
+        result = ai_service.answer_chat(message, local_answer, context, intent)
+        answer = result['answer']
+        provider = result['provider']
+    else:
+        result = ai_service.answer_question(message, context)
+        answer = result['answer']
+        provider = result['provider']
+
+    if 'not a veterinary diagnosis' not in answer.lower():
+        answer = answer.rstrip() + ai_service.SAFETY_FOOTER
+
+    AIConsultation.objects.create(owner=_effective_owner(request), hog=hog,
+                                  question=message, answer=answer[:4000])
+    return JsonResponse({'status': 'success', 'intent': intent, 'answer': answer,
+                         'provider': provider, 'hog_id': hog.id if hog else None})
 
 
 # ------------------------------------------------------------ medicines: read public, manage admin-only

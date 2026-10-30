@@ -62,4 +62,7 @@ urlpatterns = [
 
     # search
     path('search/', views.search_page, name='search'),
+
+    # floating chat widget
+    path('chat/ajax/', views.farm_chat_ajax, name='chat_ajax'),
 ]
