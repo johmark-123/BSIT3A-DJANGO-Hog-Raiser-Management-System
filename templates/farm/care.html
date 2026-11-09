@@ -3,6 +3,32 @@
 <div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
 <div class="page-pretitle">Feeding · vitamins · vaccines</div><h2 class="page-title">Care Schedule</h2>
 </div><div class="col-auto"><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#careModal">Add Task</button></div></div></div>
+
+<div class="card mt-3"><div class="card-header"><div><h3 class="card-title">Growth & Feeding Monitor</h3>
+<div class="text-muted small">Current weight, growth trend, and age-based feed guidance for active hogs.</div></div></div>
+<div class="table-responsive"><table class="table card-table table-vcenter"><thead><tr>
+<th>Hog</th><th>Weight progress</th><th>Growth trend</th><th>Feed plan</th><th>Latest feed log</th><th>AI guidance</th>
+</tr></thead><tbody>
+{% for m in monitors %}<tr>
+<td><a href="{% url 'farm:hog_detail' m.hog.id %}"><strong>{{ m.hog.display_name }}</strong></a>
+<div class="small text-muted">{{ m.hog.code }} · {{ m.hog.age_weeks }} weeks · {{ m.hog.get_stage_display }}</div></td>
+<td>{% if m.hog.current_weight_kg %}{{ m.hog.current_weight_kg }} / {{ m.hog.target_weight_kg }} kg
+<div class="progress progress-sm mt-1"><div class="progress-bar bg-primary" style="width: {{ m.weight_progress }}%" role="progressbar" aria-valuenow="{{ m.weight_progress }}" aria-valuemin="0" aria-valuemax="100"></div></div>
+<div class="small text-muted">{% if m.latest_weight %}Last weighed {{ m.latest_weight.date }}{% endif %}</div>
+{% else %}<span class="text-muted">No weight recorded</span>{% endif %}</td>
+<td><span class="badge {% if m.growth == 'good' %}bg-success{% elif m.growth == 'fair' %}bg-warning{% elif m.growth == 'slow' or m.growth == 'losing' %}bg-danger{% else %}bg-secondary{% endif %}">{{ m.growth|title }}</span>
+<div class="small text-muted">{% if m.adg != None %}{{ m.adg }} kg/day ADG{% else %}Need 2 dated weights{% endif %}</div></td>
+<td><span class="badge bg-primary-lt">{{ m.plan.feed_category|title }}</span>
+<div class="small">~{{ m.plan.kg_per_day }} kg/day</div><div class="small text-muted">{{ m.plan.vitamin_plan }}</div></td>
+<td>{% if m.latest_feeding %}{{ m.latest_feeding.amount_kg_per_day }} kg/day · {{ m.latest_feeding.get_feed_category_display }}
+<div class="small text-muted">{{ m.latest_feeding.feeding_date }}</div>
+{% else %}<span class="text-muted">No feed log</span>{% endif %}</td>
+<td><button class="btn btn-sm btn-outline-primary ai-recommendation" data-url="{% url 'farm:care_ai_recommendation_ajax' m.hog.id %}" data-result="ai-result-{{ m.hog.id }}">Get recommendation</button>
+<div id="ai-result-{{ m.hog.id }}" class="small mt-2 d-none" aria-live="polite"></div></td>
+</tr>
+{% empty %}<tr><td colspan="6" class="text-center text-muted py-4">No active hogs to monitor. Add a hog to start tracking growth and feeding.</td></tr>{% endfor %}
+</tbody></table></div></div>
+
 <div class="mt-2"><a href="?status=open" class="btn btn-sm {% if status == 'open' %}btn-primary{% else %}btn-outline-primary{% endif %}">Open</a>
 <a href="?status=done" class="btn btn-sm {% if status == 'done' %}btn-primary{% else %}btn-outline-primary{% endif %}">Done</a>
 <a href="?status=all" class="btn btn-sm {% if status == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">All</a></div>
@@ -26,6 +52,24 @@
 {% endblock %}
 {% block extra_js %}<script>
 const csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
+document.querySelectorAll('.ai-recommendation').forEach(button=>button.addEventListener('click',async()=>{
+  const result=document.getElementById(button.dataset.result);
+  button.disabled=true;
+  button.textContent='Reviewing records…';
+  result.classList.remove('d-none','text-danger');
+  result.textContent='Generating recommendation…';
+  try{
+    const response=await fetch(button.dataset.url,{method:'POST',headers:{'X-CSRFToken':csrf}});
+    const data=await response.json();
+    if(!response.ok||data.error)throw new Error(data.error||'Unable to get a recommendation.');
+    result.textContent=data.recommendation+' ('+(data.provider==='rules'?'rule-based guidance':data.provider+' AI')+')';
+    button.textContent='Refresh recommendation';
+  }catch(error){
+    result.classList.add('text-danger');
+    result.textContent=error.message;
+    button.textContent='Try again';
+  }finally{button.disabled=false;}
+}));
 document.getElementById('careForm').addEventListener('submit',e=>{e.preventDefault();fetch("{% url 'farm:care_save_ajax' %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:new FormData(e.target)}).then(r=>r.json()).then(d=>{if(d.error){alert(d.error);return;}location.reload();});});
 function toggleCare(id){fetch("/farm/care/ajax/toggle/"+id+"/",{method:'POST',headers:{'X-CSRFToken':csrf}}).then(()=>location.reload());}
 function delCare(id){fetch("/farm/care/ajax/delete/"+id+"/",{method:'POST',headers:{'X-CSRFToken':csrf}}).then(()=>location.reload());}

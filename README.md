@@ -40,5 +40,10 @@ set OPENROUTER_API_KEY=your-key-here
 
 ## Database Design
 
-See `sql/initial_design.sql` for the initial database design (generated from the
-Django migrations for the `farm` and `info` apps).
+See [sql/initial_design.sql](sql/initial_design.sql) for the SQLite application
+table design and relationships. It covers hog profiles, weight and feeding
+records, health reports, care schedules, medicines, inventory, expenses,
+alerts, AI consultations, reference articles, and the existing info model.
+Application tables reference Django's built-in `auth_user` table. Use
+`python manage.py migrate` to create or update the database; the SQL file is a
+schema reference for a fresh database, not an upgrade script.

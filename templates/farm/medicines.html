@@ -4,6 +4,39 @@
 <div class="page-pretitle">Verified references only — vet confirms treatment</div><h2 class="page-title">Veterinary Medicine Information Center</h2>
 </div>{% if user.is_superuser %}<div class="col-auto"><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#medModal">Add Medicine</button></div>{% endif %}</div></div>
 {% for message in messages %}<div class="alert alert-info mt-2">{{ message }}</div>{% endfor %}
+
+<div class="card mt-3 border-warning"><div class="card-header"><div>
+<h3 class="card-title">Automated Medicine Reference Matches</h3>
+<div class="text-muted small">Matches reported symptom words against the library's intended-use text.</div>
+</div></div><div class="card-body">
+<div class="alert alert-warning mb-3"><strong>For veterinary review only.</strong>
+These text matches are not diagnoses or treatment recommendations. Do not give medicine based on this list.
+A licensed veterinarian must assess the hog and approve any treatment, dose, and withdrawal period.</div>
+{% for item in medication_references %}
+<div class="border rounded p-3 mb-3">
+<div class="d-flex flex-wrap justify-content-between gap-2">
+<strong>{{ item.report.hog.code }} · {{ item.report.get_urgency_display }}</strong>
+<span class="small text-muted">Reported {{ item.report.created_at|date:"M j, Y" }} · {{ item.report.status|title }}</span>
+</div>
+<div class="small mt-1"><strong>Reported symptoms:</strong> {{ item.report.symptoms|truncatechars:180 }}</div>
+{% if item.matches %}
+<div class="small fw-semibold mt-3 mb-2">Possible library references for vet review:</div>
+<div class="row g-2">{% for medicine, terms in item.matches %}
+<div class="col-md-6 col-xl-4"><div class="card card-sm h-100"><div class="card-body">
+<h4 class="h4 mb-1">{{ medicine.name }}</h4>
+{% if medicine.active_ingredient %}<div class="small text-muted">{{ medicine.active_ingredient }}</div>{% endif %}
+<div class="small mt-2"><strong>Library use:</strong> {{ medicine.intended_use|truncatechars:180 }}</div>
+<div class="small mt-2"><strong>Text overlap:</strong> {{ terms|join:", " }}</div>
+<div class="small mt-2"><strong>Withdrawal listed:</strong> {{ medicine.withdrawal_days }} day(s)
+{% if medicine.prescription_required %} · <span class="badge bg-danger">Prescription required</span>{% endif %}</div>
+{% if medicine.precautions %}<div class="small text-muted mt-2"><strong>Precautions:</strong> {{ medicine.precautions|truncatechars:140 }}</div>{% endif %}
+</div></div></div>
+{% endfor %}</div>
+{% else %}<div class="small text-muted mt-2">No medicine-library text match. This does not rule out a health problem; ask a veterinarian to assess the hog.</div>{% endif %}
+</div>
+{% empty %}<div class="text-muted">No open, monitoring, or vet-referred health reports to match yet. Record a health report to see possible library references.</div>{% endfor %}
+</div></div>
+
 <form method="GET" class="my-3" style="max-width:460px"><div class="input-group"><input name="q" value="{{ query }}" class="form-control" placeholder="Search name, ingredient, use…"><button class="btn btn-primary">Search</button></div></form>
 <div class="row row-cards">{% for m in meds %}
 <div class="col-md-6 col-lg-4"><div class="card h-100"><div class="card-body">
