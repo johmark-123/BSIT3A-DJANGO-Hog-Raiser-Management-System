@@ -1,0 +1,41 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl mt-4">
+    <h2>Medical Treatment Logs</h2>
+    <a href="{% url 'farm:treatment_log_add' %}" class="btn btn-primary mb-3">+ Magdagdag ng Paggamot</a>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date Administered</th>
+                            <th>Pig / Batch</th>
+                            <th>Medicine</th>
+                            <th>Quantity Used</th>
+                            <th>Administered By</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for l in logs %}
+                        <tr>
+                            <td>{{ l.date_administered }}</td>
+                            <td>{{ l.pig_or_batch }}</td>
+                            <td>{{ l.medicine.name }}</td>
+                            <td>{{ l.quantity_used }}</td>
+                            <td>{{ l.administered_by|default:"—" }}</td>
+                            <td>{{ l.notes|default:"—" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6" class="text-muted">No treatment logs yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}{% endblock %}

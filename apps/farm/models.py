@@ -289,6 +289,8 @@ class Medicine(models.Model):
     prescription_required = models.BooleanField(default=False)
     interactions = models.TextField(blank=True)
     reference_source = models.CharField(max_length=255, blank=True)
+    stock_quantity = models.FloatField(default=0.0, help_text='Natitirang dami (bottle, vial, o pcs)')
+    unit = models.CharField(max_length=20, default='Bottles', help_text='Yunit ng imbentaryo')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -433,3 +435,168 @@ class HogMedicine(models.Model):
             from datetime import timedelta
             self.withdrawal_until = self.administered_date + timedelta(days=self.medicine.withdrawal_days)
         super().save(*args, **kwargs)
+
+
+class BreedingRecord(models.Model):
+    sow = models.ForeignKey('Hog', on_delete=models.CASCADE, related_name='breeding_records')
+    mating_date = models.DateField(help_text='Petsa ng pagpapalahi (AI o Natural)')
+    expected_farrowing_date = models.DateField(blank=True, null=True, help_text='Inaasahang petsa ng panganganak')
+    actual_farrowing_date = models.DateField(blank=True, null=True)
+    litter_size = models.IntegerField(blank=True, null=True, help_text='Bilang ng biik na naisilang')
+    status = models.CharField(
+        max_length=20,
+        choices=[('Pregnant', 'Pregnant'), ('Farrowed', 'Farrowed'), ('Failed', 'Failed')],
+        default='Pregnant'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-mating_date']
+
+    def save(self, *args, **kwargs):
+        if self.mating_date and not self.expected_farrowing_date:
+            from datetime import timedelta
+            self.expected_farrowing_date = self.mating_date + timedelta(days=114)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'Sow {self.sow.code} - Mated: {self.mating_date}'
+
+
+class HealthTriageLog(models.Model):
+    pig_tag = models.CharField(max_length=50, blank=True, null=True, help_text='Tag number ng baboy (opsyonal)')
+    symptoms = models.TextField(help_text='Mga nakitang sintomas')
+    ai_recommendation = models.TextField(blank=True, null=True, help_text='Sagot o pagsusuli mula sa Gemini AI')
+    created_at = models.DateTimeField(auto_now_add=True)
+    consulted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='triage_logs',
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Triage Log - {self.created_at.strftime("%Y-%m-%d")} ({self.pig_tag or "Gen. Health"})'
+
+
+class HogBatch(models.Model):
+    name = models.CharField(max_length=100, help_text='Pangalan ng Batch (hal. Grower Batch 1)')
+    initial_total_weight = models.FloatField(help_text='Kabuuang timbang noong simula (kg)')
+    current_total_weight = models.FloatField(help_text='Kasalukuyang kabuuang timbang (kg)')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_weight_gain(self):
+        """Kuwenta ng nadagdag na timbang"""
+        gain = self.current_total_weight - self.initial_total_weight
+        return max(gain, 0.0)
+
+    @property
+    def total_feed_consumed(self):
+        """Kolektahin ang lahat ng kain na feeds mula sa BatchFeedingRecord"""
+        total = self.batch_feeding_records.aggregate(models.Sum('quantity_kg'))['quantity_kg__sum']
+        return total or 0.0
+
+    @property
+    def fcr(self):
+        """Kalkulasyon ng FCR"""
+        gain = self.total_weight_gain
+        if gain > 0:
+            return round(self.total_feed_consumed / gain, 2)
+        return 0.0
+
+
+class BatchFeedingRecord(models.Model):
+    batch = models.ForeignKey(HogBatch, on_delete=models.CASCADE, related_name='batch_feeding_records')
+    date = models.DateField()
+    quantity_kg = models.FloatField(help_text='Dami ng pinakain sa kg')
+    feed_type = models.CharField(max_length=50, help_text='Pre-starter, Starter, Grower, Finisher')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', '-id']
+
+    def __str__(self):
+        return f'{self.batch.name} - {self.quantity_kg}kg ({self.feed_type}) @ {self.date}'
+
+
+class MedicalTreatmentLog(models.Model):
+    pig_or_batch = models.CharField(max_length=100, help_text='Tag number ng baboy o pangalan ng batch')
+    medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='treatment_logs')
+    quantity_used = models.FloatField(help_text='Dami ng gamot na ginamit')
+    date_administered = models.DateField()
+    administered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='treatment_logs',
+    )
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date_administered', '-id']
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            if self.medicine.stock_quantity >= self.quantity_used:
+                self.medicine.stock_quantity -= self.quantity_used
+                self.medicine.save()
+            else:
+                raise ValueError(f'Kulang ang stock ng gamot na {self.medicine.name}!')
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'Treated {self.pig_or_batch} with {self.medicine.name} on {self.date_administered}'
+
+
+class FeedInventory(models.Model):
+    FEED_TYPES = [
+        ('Pre-Starter', 'Pre-Starter'),
+        ('Starter', 'Starter'),
+        ('Grower', 'Grower'),
+        ('Finisher', 'Finisher'),
+        ('Breeder', 'Breeder'),
+    ]
+    feed_type = models.CharField(max_length=50, choices=FEED_TYPES, unique=True)
+    quantity_kg = models.FloatField(default=0.0, help_text='Kabuuan ng stock sa kilo (kg)')
+    reorder_level = models.FloatField(default=50.0, help_text='Minimum stock bago magbigay ng low-stock alert')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['feed_type']
+
+    def __str__(self):
+        return f'{self.feed_type} - {self.quantity_kg} kg'
+
+    @property
+    def is_low(self):
+        return self.quantity_kg <= self.reorder_level
+
+
+class BatchFeedDeduction(models.Model):
+    batch = models.ForeignKey('HogBatch', on_delete=models.CASCADE, related_name='feed_deductions')
+    feed_inventory = models.ForeignKey(FeedInventory, on_delete=models.CASCADE, help_text='Uri ng feeds na binabawas sa stock')
+    quantity_kg = models.FloatField(help_text='Kilo ng feeds na pinakain ngayon')
+    date = models.DateField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            if self.feed_inventory.quantity_kg >= self.quantity_kg:
+                self.feed_inventory.quantity_kg -= self.quantity_kg
+                self.feed_inventory.save()
+            else:
+                raise ValueError(
+                    f'Babala: Hindi sapat ang stock ng {self.feed_inventory.feed_type}! '
+                    f'Kasalukuyang stock: {self.feed_inventory.quantity_kg} kg.'
+                )
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'Feed {self.quantity_kg}kg of {self.feed_inventory.feed_type} to {self.batch.name}'

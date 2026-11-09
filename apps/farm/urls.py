@@ -15,6 +15,21 @@ urlpatterns = [
     path('hogs/ajax/delete/<int:pk>/', views.hog_delete_ajax, name='hog_delete_ajax'),
     path('hogs/<int:pk>/', views.hog_detail_page, name='hog_detail'),
 
+    # batches
+    path('batches/<int:pk>/', views.batch_detail_view, name='batch_detail'),
+
+    # AI health triage
+    path('ai-triage/', views.ai_health_triage_view, name='ai_triage'),
+
+    # feeding + medical treatment
+    path('feeding/add/', views.add_feeding_record_view, name='feed_deduction_add'),
+    path('feeding/list/', views.feed_deduction_list_view, name='feed_deduction_list'),
+    path('treatment/add/', views.add_medical_treatment_view, name='treatment_log_add'),
+    path('treatment/list/', views.treatment_log_list_view, name='treatment_log_list'),
+
+    # combined records
+    path('records/', views.farm_records_list_view, name='records_list'),
+
     # weights / feeding
     path('hogs/<int:pk>/weights/ajax/save/', views.weight_save_ajax, name='weight_save_ajax'),
     path('hogs/<int:pk>/weights/ajax/delete/<int:rid>/', views.weight_delete_ajax, name='weight_delete_ajax'),

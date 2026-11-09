@@ -23,11 +23,14 @@ from django.views.decorators.http import require_POST
 from . import ai_service
 from .automation import _recent_duplicate, run_automation_for_owner
 from .feeding import FEED_GUIDE, suggest_feeding
+from .forms import BatchFeedDeductionForm, MedicalTreatmentLogForm
 from .models import (
-    AIConsultation, Alert, AlertSeverity, AlertType, CareSchedule, Expense,
-    FeedingRecord, HealthReport, Hog, HogMedicine, InventoryItem, Medicine,
-    ReferenceArticle, WeightRecord,
+    AIConsultation, Alert, AlertSeverity, AlertType, BatchFeedDeduction,
+    BatchFeedingRecord, BreedingRecord, CareSchedule, Expense, FeedingRecord,
+    HealthReport, Hog, HogBatch, HogMedicine, HealthTriageLog, InventoryItem,
+    Medicine, MedicalTreatmentLog, ReferenceArticle, WeightRecord,
 )
+from .services import analyze_pig_symptoms
 
 User = get_user_model()
 PUBLIC_USERNAME = 'public-farm'
@@ -244,6 +247,129 @@ def hog_detail_page(request, pk):
         'market_date': market_date, 'growth': hog.growth_status(),
         'chart_weights': chart_weights,
     })
+
+
+def batch_detail_view(request, pk):
+    batch = get_object_or_404(HogBatch, pk=pk)
+    feedings = batch.batch_feeding_records.order_by('-date', '-id')
+    context = {
+        'batch': batch,
+        'feedings': feedings,
+    }
+    return render(request, 'farm/batch_detail.html', context)
+
+
+@login_required
+def add_feeding_record_view(request):
+    if request.method == 'POST':
+        form = BatchFeedDeductionForm(request.POST)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, 'Matagumpay na naitala ang pagpapakain at nabawasan ang stock ng feeds!')
+                return redirect('farm:feed_deduction_list')
+            except ValueError as e:
+                messages.error(request, str(e))
+    else:
+        form = BatchFeedDeductionForm()
+
+    context = {
+        'form': form,
+        'title': 'Magtala ng Pagpapakain (Feeding Log)'
+    }
+    return render(request, 'farm/add_feeding.html', context)
+
+
+@login_required
+def feed_deduction_list_view(request):
+    deductions = BatchFeedDeduction.objects.select_related('batch', 'feed_inventory').order_by('-date', '-id')
+    return render(request, 'farm/feed_deduction_list.html', {'deductions': deductions})
+
+
+@login_required
+def add_medical_treatment_view(request):
+    if request.method == 'POST':
+        form = MedicalTreatmentLogForm(request.POST)
+        if form.is_valid():
+            treatment = form.save(commit=False)
+            treatment.administered_by = request.user
+            try:
+                treatment.save()
+                messages.success(request, 'Matagumpay na naitala ang medikasyon at nabawasan ang stock ng gamot!')
+                return redirect('farm:treatment_log_list')
+            except ValueError as e:
+                messages.error(request, str(e))
+    else:
+        form = MedicalTreatmentLogForm()
+
+    context = {
+        'form': form,
+        'title': 'Magtala ng Paggamot (Medical Treatment Log)'
+    }
+    return render(request, 'farm/add_treatment.html', context)
+
+
+@login_required
+def treatment_log_list_view(request):
+    logs = MedicalTreatmentLog.objects.select_related('medicine', 'administered_by').order_by('-date_administered', '-id')
+    return render(request, 'farm/treatment_log_list.html', {'logs': logs})
+
+
+@login_required
+def farm_records_list_view(request):
+    search_query = request.GET.get('q', '')
+
+    feeding_records = BatchFeedDeduction.objects.select_related('batch', 'feed_inventory').order_by('-date')
+    treatment_records = MedicalTreatmentLog.objects.select_related('medicine', 'administered_by').order_by('-date_administered')
+
+    if search_query:
+        feeding_records = feeding_records.filter(
+            Q(batch__name__icontains=search_query) |
+            Q(feed_inventory__feed_type__icontains=search_query)
+        )
+        treatment_records = treatment_records.filter(
+            Q(pig_or_batch__icontains=search_query) |
+            Q(medicine__name__icontains=search_query)
+        )
+
+    context = {
+        'feeding_records': feeding_records,
+        'treatment_records': treatment_records,
+        'search_query': search_query,
+    }
+    return render(request, 'farm/farm_records_list.html', context)
+
+
+@login_required
+def ai_health_triage_view(request):
+    triage_result = None
+    pig_tag = ""
+    symptoms = ""
+
+    if request.method == 'POST':
+        pig_tag = request.POST.get('pig_tag', '')
+        symptoms = request.POST.get('symptoms', '')
+
+        if symptoms:
+            api_result = analyze_pig_symptoms(symptoms)
+
+            if not api_result['error']:
+                triage_result = api_result['response_text']
+                HealthTriageLog.objects.create(
+                    pig_tag=pig_tag,
+                    symptoms=symptoms,
+                    ai_recommendation=triage_result,
+                    consulted_by=request.user,
+                )
+            else:
+                triage_result = f"May naganap na error: {api_result['message']}"
+
+    context = {
+        'triage_result': triage_result,
+        'pig_tag': pig_tag,
+        'symptoms': symptoms,
+    }
+    return render(request, 'farm/ai_triage.html', context)
 
 
 # ------------------------------------------------------------ weights / feeding / care (public)

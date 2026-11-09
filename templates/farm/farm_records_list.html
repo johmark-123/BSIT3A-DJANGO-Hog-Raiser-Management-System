@@ -1,0 +1,87 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl mt-4">
+    <h2>Kasaysayan at Mga Tala sa Sakahan (Farm Records)</h2>
+    <p class="text-muted">Pangkalahatang listahan ng mga pagpapakain at medikasyon ng mga baboy.</p>
+
+    <!-- Search Form -->
+    <form method="GET" action="" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Maghanap ng Batch, Uri ng Feeds, o Gamot..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit">Hanapin</button>
+            {% if search_query %}
+                <a href="{% url 'farm:records_list' %}" class="btn btn-outline-secondary">I-reset</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- 1. Feeding Records Table Card -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <h3 class="card-title">Feeding Records (Kasaysayan ng Pagpapakain)</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table table-striped">
+                <thead>
+                    <tr>
+                        <th>Petsa</th>
+                        <th>Batch ng Baboy</th>
+                        <th>Uri ng Feeds</th>
+                        <th>Dami (kg)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in feeding_records %}
+                    <tr>
+                        <td>{{ record.date }}</td>
+                        <td>{{ record.batch.name }}</td>
+                        <td>{{ record.feed_inventory.feed_type }}</td>
+                        <td><strong>{{ record.quantity_kg }} kg</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-3">Walang nakitang tala sa pagpapakain.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. Medical Treatment Records Table Card -->
+    <div class="card mt-4 mb-5">
+        <div class="card-header">
+            <h3 class="card-title">Medical Treatment Records (Kasaysayan ng Paggamot)</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table table-striped">
+                <thead>
+                    <tr>
+                        <th>Petsa</th>
+                        <th>Baboy / Batch</th>
+                        <th>Gamot</th>
+                        <th>Dami na Ginamit</th>
+                        <th>Nag-administer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in treatment_records %}
+                    <tr>
+                        <td>{{ record.date_administered }}</td>
+                        <td>{{ record.pig_or_batch }}</td>
+                        <td>{{ record.medicine.name }}</td>
+                        <td>{{ record.quantity_used }} {{ record.medicine.unit }}</td>
+                        <td>{{ record.administered_by.username|default:"N/A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">Walang nakitang tala sa medikasyon.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}{% endblock %}

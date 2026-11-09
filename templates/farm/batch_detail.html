@@ -1,0 +1,72 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col">
+<div class="page-pretitle"><a href="{% url 'farm:dashboard' %}">Dashboard</a> / Batch</div>
+<h2 class="page-title">{{ batch.name }}</h2>
+</div><div class="col-auto"><a href="{% url 'farm:dashboard' %}" class="btn btn-outline-secondary">Back</a></div></div></div>
+
+{% for message in messages %}<div class="alert alert-info mt-2">{{ message }}</div>{% endfor %}
+
+<div class="row row-cards mt-2">
+  <div class="col-lg-8">
+    <div class="card"><div class="card-header"><h3 class="card-title">Batch Performance</h3></div><div class="card-body">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card bg-light text-center py-3">
+            <div class="card-body">
+              <h5 class="card-title">Initial Total Weight</h5>
+              <p class="display-6">{{ batch.initial_total_weight }} kg</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-light text-center py-3">
+            <div class="card-body">
+              <h5 class="card-title">Current Total Weight</h5>
+              <p class="display-6">{{ batch.current_total_weight }} kg</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-light text-center py-3">
+            <div class="card-body">
+              <h5 class="card-title">Total Weight Gain</h5>
+              <p class="display-6 text-success">{{ batch.total_weight_gain }} kg</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card bg-light text-center py-3">
+            <div class="card-body">
+              <h5 class="card-title">Total Feed Consumed</h5>
+              <p class="display-6">{{ batch.total_feed_consumed }} kg</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card bg-primary text-center py-3">
+            <div class="card-body text-white">
+              <h5 class="card-title">Feed Conversion Ratio (FCR)</h5>
+              <p class="display-4">{{ batch.fcr }}</p>
+              <small>Feed kg per 1 kg weight gain</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card"><div class="card-header"><h3 class="card-title">Feeding Records</h3></div><div class="card-body">
+      <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Date</th><th>Feed Type</th><th>Quantity (kg)</th></tr></thead><tbody>
+      {% for f in feedings %}<tr><td>{{ f.date }}</td><td>{{ f.feed_type }}</td><td>{{ f.quantity_kg }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="text-muted">No feeding records yet.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}{% endblock %}
