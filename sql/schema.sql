@@ -1,8 +1,8 @@
 -- ============================================================
--- Hog Raiser Management System - Database Schema
+-- Hog Raiser Management System - Database Schema (Standalone)
 -- Dialect: MariaDB / MySQL
--- Import: phpMyAdmin -> SQL tab, or: mysql -u root -p bsitcrud < sql/schema.sql
--- Prerequisite: Create database first: CREATE DATABASE bsitcrud CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- Import: phpMyAdmin -> SQL tab, or: mysql -u root -p <db> < sql/schema.sql
+-- No external dependencies (no auth_user foreign keys).
 -- ============================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -62,8 +62,7 @@ CREATE TABLE IF NOT EXISTS `farm_hog` (
     `owner_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `farm_hog_owner_id_code_uniq` (`owner_id`, `code`),
-    KEY `farm_hog_owner_id` (`owner_id`),
-    CONSTRAINT `farm_hog_owner_id_fk_auth_user_id` FOREIGN KEY (`owner_id`) REFERENCES `auth_user` (`id`)
+    KEY `farm_hog_owner_id` (`owner_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_weight` (
@@ -74,8 +73,7 @@ CREATE TABLE IF NOT EXISTS `farm_weight` (
     `created_at` datetime NOT NULL,
     `hog_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
-    KEY `farm_weight_hog_id` (`hog_id`),
-    CONSTRAINT `farm_weight_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_weight_hog_id` (`hog_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_feeding` (
@@ -88,8 +86,7 @@ CREATE TABLE IF NOT EXISTS `farm_feeding` (
     `created_at` datetime NOT NULL,
     `hog_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
-    KEY `farm_feeding_hog_id` (`hog_id`),
-    CONSTRAINT `farm_feeding_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_feeding_hog_id` (`hog_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_health` (
@@ -110,9 +107,7 @@ CREATE TABLE IF NOT EXISTS `farm_health` (
     `hog_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
     KEY `farm_health_reported_by_id` (`reported_by_id`),
-    KEY `farm_health_hog_id` (`hog_id`),
-    CONSTRAINT `farm_health_reported_by_id_fk_auth_user_id` FOREIGN KEY (`reported_by_id`) REFERENCES `auth_user` (`id`),
-    CONSTRAINT `farm_health_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_health_hog_id` (`hog_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_expense` (
@@ -126,9 +121,7 @@ CREATE TABLE IF NOT EXISTS `farm_expense` (
     `hog_id` bigint NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `farm_expense_owner_id` (`owner_id`),
-    KEY `farm_expense_hog_id` (`hog_id`),
-    CONSTRAINT `farm_expense_owner_id_fk_auth_user_id` FOREIGN KEY (`owner_id`) REFERENCES `auth_user` (`id`),
-    CONSTRAINT `farm_expense_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_expense_hog_id` (`hog_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_care` (
@@ -144,9 +137,7 @@ CREATE TABLE IF NOT EXISTS `farm_care` (
     `hog_id` bigint NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `farm_care_owner_id` (`owner_id`),
-    KEY `farm_care_hog_id` (`hog_id`),
-    CONSTRAINT `farm_care_owner_id_fk_auth_user_id` FOREIGN KEY (`owner_id`) REFERENCES `auth_user` (`id`),
-    CONSTRAINT `farm_care_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_care_hog_id` (`hog_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_alert` (
@@ -163,9 +154,7 @@ CREATE TABLE IF NOT EXISTS `farm_alert` (
     `hog_id` bigint NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `farm_alert_owner_id` (`owner_id`),
-    KEY `farm_alert_hog_id` (`hog_id`),
-    CONSTRAINT `farm_alert_owner_id_fk_auth_user_id` FOREIGN KEY (`owner_id`) REFERENCES `auth_user` (`id`),
-    CONSTRAINT `farm_alert_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_alert_hog_id` (`hog_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_ai_chat` (
@@ -177,9 +166,7 @@ CREATE TABLE IF NOT EXISTS `farm_ai_chat` (
     `hog_id` bigint NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `farm_ai_chat_owner_id` (`owner_id`),
-    KEY `farm_ai_chat_hog_id` (`hog_id`),
-    CONSTRAINT `farm_ai_chat_owner_id_fk_auth_user_id` FOREIGN KEY (`owner_id`) REFERENCES `auth_user` (`id`),
-    CONSTRAINT `farm_ai_chat_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_ai_chat_hog_id` (`hog_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_inventory` (
@@ -194,8 +181,7 @@ CREATE TABLE IF NOT EXISTS `farm_inventory` (
     `updated_at` datetime NOT NULL,
     `owner_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
-    KEY `farm_inventory_owner_id` (`owner_id`),
-    CONSTRAINT `farm_inventory_owner_id_fk_auth_user_id` FOREIGN KEY (`owner_id`) REFERENCES `auth_user` (`id`)
+    KEY `farm_inventory_owner_id` (`owner_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
@@ -218,11 +204,7 @@ CREATE TABLE IF NOT EXISTS `farm_hogmedicine` (
     KEY `farm_hogmedicine_hog_id` (`hog_id`),
     KEY `farm_hogmedicine_medicine_id` (`medicine_id`),
     KEY `farm_hogmedicine_health_report_id` (`health_report_id`),
-    KEY `farm_hogmedicine_administered_by_id` (`administered_by_id`),
-    CONSTRAINT `farm_hogmedicine_hog_id_fk_farm_hog_id` FOREIGN KEY (`hog_id`) REFERENCES `farm_hog` (`id`),
-    CONSTRAINT `farm_hogmedicine_medicine_id_fk_farm_medicine_id` FOREIGN KEY (`medicine_id`) REFERENCES `farm_medicine` (`id`),
-    CONSTRAINT `farm_hogmedicine_health_report_id_fk_farm_health_id` FOREIGN KEY (`health_report_id`) REFERENCES `farm_health` (`id`),
-    CONSTRAINT `farm_hogmedicine_administered_by_id_fk_auth_user_id` FOREIGN KEY (`administered_by_id`) REFERENCES `auth_user` (`id`)
+    KEY `farm_hogmedicine_administered_by_id` (`administered_by_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
@@ -249,8 +231,7 @@ CREATE TABLE IF NOT EXISTS `farm_breedingrecord` (
     `created_at` datetime NOT NULL,
     `sow_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
-    KEY `farm_breedingrecord_sow_id` (`sow_id`),
-    CONSTRAINT `farm_breedingrecord_sow_id_fk_farm_hog_id` FOREIGN KEY (`sow_id`) REFERENCES `farm_hog` (`id`)
+    KEY `farm_breedingrecord_sow_id` (`sow_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
@@ -265,8 +246,7 @@ CREATE TABLE IF NOT EXISTS `farm_healthtriagelog` (
     `created_at` datetime NOT NULL,
     `consulted_by_id` bigint NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
-    KEY `farm_healthtriagelog_consulted_by_id` (`consulted_by_id`),
-    CONSTRAINT `farm_healthtriagelog_consulted_by_id_fk_auth_user_id` FOREIGN KEY (`consulted_by_id`) REFERENCES `auth_user` (`id`)
+    KEY `farm_healthtriagelog_consulted_by_id` (`consulted_by_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
@@ -290,8 +270,7 @@ CREATE TABLE IF NOT EXISTS `farm_batchfeedingrecord` (
     `created_at` datetime NOT NULL,
     `batch_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
-    KEY `farm_batchfeedingrecord_batch_id` (`batch_id`),
-    CONSTRAINT `farm_batchfeedingrecord_batch_id_fk_farm_hogbatch_id` FOREIGN KEY (`batch_id`) REFERENCES `farm_hogbatch` (`id`)
+    KEY `farm_batchfeedingrecord_batch_id` (`batch_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `farm_batchfeeddeduction` (
@@ -302,9 +281,7 @@ CREATE TABLE IF NOT EXISTS `farm_batchfeeddeduction` (
     `feed_inventory_id` bigint NOT NULL,
     PRIMARY KEY (`id`),
     KEY `farm_batchfeeddeduction_batch_id` (`batch_id`),
-    KEY `farm_batchfeeddeduction_feed_inventory_id` (`feed_inventory_id`),
-    CONSTRAINT `farm_batchfeeddeduction_batch_id_fk_farm_hogbatch_id` FOREIGN KEY (`batch_id`) REFERENCES `farm_hogbatch` (`id`),
-    CONSTRAINT `farm_batchfeeddeduction_feed_inventory_id_fk_farm_feedinventory_id` FOREIGN KEY (`feed_inventory_id`) REFERENCES `farm_feedinventory` (`id`)
+    KEY `farm_batchfeeddeduction_feed_inventory_id` (`feed_inventory_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
@@ -322,9 +299,7 @@ CREATE TABLE IF NOT EXISTS `farm_medicaltreatmentlog` (
     `administered_by_id` bigint NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `farm_medicaltreatmentlog_medicine_id` (`medicine_id`),
-    KEY `farm_medicaltreatmentlog_administered_by_id` (`administered_by_id`),
-    CONSTRAINT `farm_medicaltreatmentlog_medicine_id_fk_farm_medicine_id` FOREIGN KEY (`medicine_id`) REFERENCES `farm_medicine` (`id`),
-    CONSTRAINT `farm_medicaltreatmentlog_administered_by_id_fk_auth_user_id` FOREIGN KEY (`administered_by_id`) REFERENCES `auth_user` (`id`)
+    KEY `farm_medicaltreatmentlog_administered_by_id` (`administered_by_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
@@ -341,12 +316,11 @@ CREATE TABLE IF NOT EXISTS `tblinfo` (
     `updated_at` datetime NOT NULL,
     `user_id` bigint NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
-    KEY `tblinfo_user_id` (`user_id`),
-    CONSTRAINT `tblinfo_user_id_fk_auth_user_id` FOREIGN KEY (`user_id`) REFERENCES `auth_user` (`id`)
+    KEY `tblinfo_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
--- End of schema
+-- End of schema (standalone - no foreign key constraints)
 -- ============================================================
